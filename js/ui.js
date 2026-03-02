@@ -375,8 +375,9 @@ function doAITurn() {
 
         if (!move && GameState.aiHand.length > 0) {
             // Fallback: force trail first card
-            executeTrail(GameState.aiHand[0], false);
-            updateStatus(`AI trailed ${cardToString(GameState.aiHand[0])}.`);
+            const trailCard = GameState.aiHand[0];
+            executeTrail(trailCard, false);
+            updateStatus(`AI trailed ${cardToString(trailCard)}.`);
         } else if (move) {
             applyAIMove(move);
         }

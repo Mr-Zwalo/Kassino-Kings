@@ -1,5 +1,7 @@
 'use strict';
 
+const MIN_BUILD_TARGET_VALUE = 5; // builds to values below this are rarely worth the effort
+
 // ── AI entry point ────────────────────────────────────────────────────────────
 function getAIMove() {
     // 1. Capture (best scoring)
@@ -101,8 +103,8 @@ function findBestAIBuild() {
                 });
 
                 if (captureCard) {
-                    // Only build if target value is high enough to be worthwhile (≥ 6)
-                    if (target >= 5) {
+                    // Only build if target value is high enough to be worthwhile
+                    if (target >= MIN_BUILD_TARGET_VALUE) {
                         return { type: 'build', handCard: card, centerItems: subset, targetValue: target };
                     }
                 }
