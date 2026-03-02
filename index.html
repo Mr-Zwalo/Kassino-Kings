@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kassino Kings</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="game-container">
+
+    <!-- ── Header ───────────────────────────────────────────────────────── -->
+    <div id="header">
+        <div id="game-title">♠ Kassino Kings ♥</div>
+
+        <div id="score-panel">
+            <div class="score-box">
+                <div class="score-box-label">You</div>
+                <div id="player-game-score" class="game-score">0</div>
+                <div id="player-round-info" class="round-info">Captured: 0  Sweeps: 0</div>
+            </div>
+            <div class="score-vs">vs</div>
+            <div class="score-box">
+                <div class="score-box-label">AI</div>
+                <div id="ai-game-score" class="game-score">0</div>
+                <div id="ai-round-info" class="round-info">Captured: 0  Sweeps: 0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── AI hand ──────────────────────────────────────────────────────── -->
+    <div id="ai-area">
+        <div id="ai-label-row">
+            <span>AI's Hand</span>
+            <span id="ai-card-count">4 cards</span>
+        </div>
+        <div id="ai-hand"></div>
+    </div>
+
+    <!-- ── Center table ─────────────────────────────────────────────────── -->
+    <div id="center-area">
+        <div id="deck-column">
+            <div class="deck-card-back"></div>
+            <div id="deck-count">44</div>
+            <div id="deck-label">Deck</div>
+        </div>
+        <div id="center-table">
+            <div id="center-table-label">Center Table</div>
+            <div id="center-cards"></div>
+        </div>
+    </div>
+
+    <!-- ── Player area ──────────────────────────────────────────────────── -->
+    <div id="player-area">
+        <div id="status-bar">
+            <div id="status-message">Initialising…</div>
+        </div>
+        <div id="player-hand"></div>
+        <div id="action-buttons">
+            <button id="btn-capture" class="action-btn" disabled>Capture</button>
+            <button id="btn-build"   class="action-btn" disabled>Build</button>
+            <button id="btn-trail"   class="action-btn" disabled>Trail</button>
+            <button id="btn-new-game" class="action-btn btn-secondary">New Game</button>
+        </div>
+    </div>
+
+</div><!-- #game-container -->
+
+<!-- ── Round-over overlay ─────────────────────────────────────────────── -->
+<div id="score-overlay" class="overlay hidden">
+    <div class="overlay-box">
+        <h2 id="overlay-title">Round Complete!</h2>
+        <div id="score-breakdown"></div>
+        <button id="btn-next-round" class="action-btn">Next Round</button>
+    </div>
+</div>
+
+<!-- ── Game-over overlay ──────────────────────────────────────────────── -->
+<div id="gameover-overlay" class="overlay hidden">
+    <div class="overlay-box">
+        <h2 id="gameover-title">Game Over!</h2>
+        <div id="gameover-content"></div>
+        <button id="btn-play-again" class="action-btn">Play Again</button>
+    </div>
+</div>
+
+<script src="js/deck.js"></script>
+<script src="js/game.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>
