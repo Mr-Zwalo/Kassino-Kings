@@ -4,7 +4,7 @@ const MIN_BUILD_TARGET_VALUE = 5; // builds to values below this are rarely wort
 
 // ── AI entry point ────────────────────────────────────────────────────────────
 function getAIMove() {
-    // 1. Capture (best scoring)
+    // 1. Capture (best scoring), including the option to capture the player's pile top
     const capture = findBestAICapture();
     if (capture) return capture;
 
@@ -24,7 +24,8 @@ function findBestAICapture() {
     let bestScore = -1;
 
     for (const card of GameState.aiHand) {
-        const options = getValidCaptureOptions(card);
+        // isPlayer=false → include player's pile top card in capture options
+        const options = getValidCaptureOptions(card, false);
         for (const option of options) {
             const score = scoreCaptureMove(card, option);
             if (score > bestScore) {
@@ -39,19 +40,28 @@ function findBestAICapture() {
 function scoreCaptureMove(handCard, centerItems) {
     let score = 0;
 
-    // Sweep is best
-    if (GameState.centerCards.length === centerItems.length) score += 100;
+    // Sweep is best (check only center table items, not pile top cards)
+    const centerOnlyCount = centerItems.filter(i => i.type !== 'pileTopCard').length;
+    if (centerOnlyCount === GameState.centerCards.length && centerOnlyCount > 0) {
+        score += 100;
+    }
 
-    // Count total cards captured (including those inside builds)
+    // Count total cards captured (including those inside builds and pile top)
     let cardCount = 1; // +1 for the played hand card
     for (const item of centerItems) {
-        cardCount += item.type === 'build' ? item.cards.length : 1;
+        if (item.type === 'pileTopCard') {
+            cardCount += 1;
+        } else {
+            cardCount += item.type === 'build' ? item.cards.length : 1;
+        }
     }
     score += cardCount * 3;
 
     // Special card bonuses
     for (const item of centerItems) {
-        const cards = item.type === 'build' ? item.cards : [item];
+        const cards = item.type === 'pileTopCard' ? [item.card]
+                    : item.type === 'build'       ? item.cards
+                    : [item];
         for (const c of cards) {
             if (c.rank === '10' && c.suit === 'diamonds') score += 25; // Big Casino
             if (c.rank === '2'  && c.suit === 'spades')   score += 12; // Little Casino
@@ -71,10 +81,11 @@ function findBestAIBuild() {
     const hand   = GameState.aiHand;
     const center = GameState.centerCards;
 
-    for (const card of hand) {
-        if (isFaceCard(card)) continue;
+    // The player's top pile card can also be used as build material
+    const playerTopItem = getOpponentTopPileItem(false); // false = AI perspective
 
-        // Collect all target values the AI could build to (from other hand cards)
+    for (const card of hand) {
+        // In Swazi Casino all cards including face cards have arithmetic values
         const possibleTargets = new Set();
         for (const other of hand) {
             if (other === card) continue;
@@ -86,6 +97,8 @@ function findBestAIBuild() {
         const usable = center.filter(
             item => !(item.type === 'build' && item.owner === 'player')
         );
+        // Also include player's pile top if available
+        if (playerTopItem) usable.push(playerTopItem);
 
         for (const target of possibleTargets) {
             const needed = target - card.value;
@@ -119,7 +132,6 @@ function findBestAITrail() {
     const hand = GameState.aiHand;
     if (hand.length === 0) return null;
 
-    // If AI has active build it must not trail (but if somehow stuck, trail anyway)
     // Sort by trail penalty ascending – lowest penalty trailed first
     const sorted = [...hand].sort((a, b) => trailPenalty(a) - trailPenalty(b));
     return { type: 'trail', handCard: sorted[0] };

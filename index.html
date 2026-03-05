@@ -33,21 +33,32 @@
     <div id="ai-area">
         <div id="ai-label-row">
             <span>AI's Hand</span>
-            <span id="ai-card-count">4 cards</span>
+            <span id="ai-card-count">24 cards</span>
         </div>
         <div id="ai-hand"></div>
     </div>
 
     <!-- ── Center table ─────────────────────────────────────────────────── -->
     <div id="center-area">
-        <div id="deck-column">
-            <div class="deck-card-back"></div>
-            <div id="deck-count">44</div>
-            <div id="deck-label">Deck</div>
+        <!-- Player's capture pile (left side) -->
+        <div class="pile-col" id="player-pile-col">
+            <div class="pile-label">Your Pile</div>
+            <div id="player-pile-top" class="pile-top-card"></div>
+            <div id="player-pile-count" class="pile-count">0 cards</div>
         </div>
+
+        <!-- Center table cards -->
         <div id="center-table">
             <div id="center-table-label">Center Table</div>
             <div id="center-cards"></div>
+        </div>
+
+        <!-- AI's capture pile (right side) — top card is clickable for capture/build -->
+        <div class="pile-col" id="ai-pile-col">
+            <div class="pile-label">AI's Pile</div>
+            <div id="ai-pile-top" class="pile-top-card"></div>
+            <div id="ai-pile-count" class="pile-count">0 cards</div>
+            <div id="ai-pile-hint" class="pile-hint"></div>
         </div>
     </div>
 
@@ -67,7 +78,7 @@
 
 </div><!-- #game-container -->
 
-<!-- ── Round-over overlay ─────────────────────────────────────────────── -->
+<!-- ── Round-over overlay ─────────────────────────────────────────────────── -->
 <div id="score-overlay" class="overlay hidden">
     <div class="overlay-box">
         <h2 id="overlay-title">Round Complete!</h2>
@@ -76,7 +87,7 @@
     </div>
 </div>
 
-<!-- ── Game-over overlay ──────────────────────────────────────────────── -->
+<!-- ── Game-over overlay ──────────────────────────────────────────────────── -->
 <div id="gameover-overlay" class="overlay hidden">
     <div class="overlay-box">
         <h2 id="gameover-title">Game Over!</h2>

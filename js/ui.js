@@ -1,9 +1,10 @@
 'use strict';
 
 // ── UI State ──────────────────────────────────────────────────────────────────
-let selectedHandCard    = null;
-let selectedCenterItems = [];
-let isAnimating         = false;
+let selectedHandCard      = null;
+let selectedCenterItems   = [];  // items selected from the center table
+let includeOpponentPile   = false; // whether AI's pile top card is selected
+let isAnimating           = false;
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
@@ -31,11 +32,19 @@ function setupEventListeners() {
     el('btn-play-again').addEventListener('click', handlePlayAgain);
 }
 
+// ── Build the full selection array (center items + optional pile top card) ────
+function buildFullSelection() {
+    if (!includeOpponentPile) return selectedCenterItems;
+    const pileItem = getOpponentTopPileItem(true); // player's perspective
+    return pileItem ? [...selectedCenterItems, pileItem] : selectedCenterItems;
+}
+
 // ── Master render ─────────────────────────────────────────────────────────────
 function renderGame() {
     renderAIHand();
     renderPlayerHand();
     renderCenter();
+    renderCapturePiles();
     renderScorePanel();
     updateDeckInfo();
     updateButtonStates();
@@ -87,6 +96,71 @@ function renderCenter() {
     }
 }
 
+// ── Capture pile display ──────────────────────────────────────────────────────
+function renderCapturePiles() {
+    renderPlayerPile();
+    renderAIPile();
+}
+
+function renderPlayerPile() {
+    const topArea  = el('player-pile-top');
+    const countEl  = el('player-pile-count');
+    topArea.innerHTML = '';
+
+    const n = GameState.playerCaptures.length;
+    if (n > 0) {
+        const topCard = GameState.playerCaptures[n - 1];
+        const cardEl  = buildCardEl(topCard);
+        cardEl.classList.add('pile-card');
+        topArea.appendChild(cardEl);
+    } else {
+        topArea.appendChild(makePileEmptyEl());
+    }
+    if (countEl) countEl.textContent = `${n} card${n !== 1 ? 's' : ''}`;
+}
+
+function renderAIPile() {
+    const topArea  = el('ai-pile-top');
+    const countEl  = el('ai-pile-count');
+    const hintEl   = el('ai-pile-hint');
+    topArea.innerHTML = '';
+
+    const n = GameState.aiCaptures.length;
+    if (n > 0) {
+        const topCard = GameState.aiCaptures[n - 1];
+        const cardEl  = buildCardEl(topCard);
+        cardEl.classList.add('pile-card');
+
+        // Highlight if currently selected
+        if (includeOpponentPile) {
+            cardEl.classList.add('center-selected');
+        }
+
+        // Clickable when it's the player's turn and a hand card is selected
+        if (GameState.currentTurn === 'player' && !isAnimating) {
+            cardEl.classList.add('pile-card-clickable');
+            cardEl.addEventListener('click', handleAIPileTopClick);
+        }
+        topArea.appendChild(cardEl);
+
+        // Show hint when a hand card is selected
+        if (hintEl) {
+            hintEl.textContent = selectedHandCard ? '← click to include' : '';
+        }
+    } else {
+        topArea.appendChild(makePileEmptyEl());
+        if (hintEl) hintEl.textContent = '';
+    }
+    if (countEl) countEl.textContent = `${n} card${n !== 1 ? 's' : ''}`;
+}
+
+function makePileEmptyEl() {
+    const div = document.createElement('div');
+    div.className = 'pile-empty';
+    div.textContent = '—';
+    return div;
+}
+
 // ── Card element factory ──────────────────────────────────────────────────────
 function buildCardEl(card) {
     const div = document.createElement('div');
@@ -122,7 +196,6 @@ function buildBuildEl(build) {
         cardEl.style.zIndex = idx;
         stack.appendChild(cardEl);
     });
-    // Stack needs enough width
     stack.style.width  = `${65 + (shown.length - 1) * 18}px`;
     stack.style.height = '90px';
 
@@ -156,24 +229,25 @@ function renderScorePanel() {
 }
 
 function updateDeckInfo() {
-    const n = GameState.deck.length;
+    // In Swazi Casino the full deck is dealt out – show hand sizes instead
     const countEl = el('deck-count');
-    if (countEl) countEl.textContent = n;
+    if (countEl) countEl.textContent = GameState.deck.length;
     const backEl = document.querySelector('.deck-card-back');
-    if (backEl) backEl.style.opacity = n > 0 ? '1' : '0.2';
+    if (backEl) backEl.style.opacity = GameState.deck.length > 0 ? '1' : '0.15';
 }
 
 // ── Button states ─────────────────────────────────────────────────────────────
 function updateButtonStates() {
     const isPlayerTurn = GameState.currentTurn === 'player' && !isAnimating;
     const hasHand      = selectedHandCard !== null;
-    const hasCenter    = selectedCenterItems.length > 0;
+    const fullSel      = buildFullSelection();
+    const hasCenter    = fullSel.length > 0;
 
     const captureOk = hasHand && hasCenter &&
-        isValidCapture(selectedHandCard, selectedCenterItems);
+        isValidCapture(selectedHandCard, fullSel);
 
     const buildOk = hasHand && hasCenter &&
-        isValidBuild(selectedHandCard, selectedCenterItems, GameState.playerHand);
+        isValidBuild(selectedHandCard, fullSel, GameState.playerHand);
 
     const trailOk = hasHand && !hasActiveBuild('player');
 
@@ -193,25 +267,19 @@ function updateActionHint() {
         updateStatus('Select a card from your hand to play.');
         return;
     }
-    const opts = getValidCaptureOptions(selectedHandCard);
-    if (isFaceCard(selectedHandCard)) {
+    const opts = getValidCaptureOptions(selectedHandCard, true);
+    const fullSel = buildFullSelection();
+
+    if (fullSel.length === 0) {
         if (opts.length > 0) {
-            updateStatus(`${cardToString(selectedHandCard)} selected — click Capture to take matching face cards, or Trail.`);
+            updateStatus(`${cardToString(selectedHandCard)} selected — select center cards (or AI's pile top) to capture/build, or Trail.`);
         } else {
-            updateStatus(`${cardToString(selectedHandCard)} selected — no matching face cards to capture. Click Trail.`);
-        }
-        return;
-    }
-    if (selectedCenterItems.length === 0) {
-        if (opts.length > 0) {
-            updateStatus(`${cardToString(selectedHandCard)} selected — select center cards to capture/build, or Trail.`);
-        } else {
-            updateStatus(`${cardToString(selectedHandCard)} selected — no captures available. Select center cards to build, or Trail.`);
+            updateStatus(`${cardToString(selectedHandCard)} selected — no captures available. Select cards to build, or Trail.`);
         }
     } else {
-        const sum = selectedCenterItems.reduce((s, i) => s + getItemValue(i), 0);
-        const captureValid = isValidCapture(selectedHandCard, selectedCenterItems);
-        const buildValid   = isValidBuild(selectedHandCard, selectedCenterItems, GameState.playerHand);
+        const sum = fullSel.reduce((s, i) => s + getItemValue(i), 0);
+        const captureValid = isValidCapture(selectedHandCard, fullSel);
+        const buildValid   = isValidBuild(selectedHandCard, fullSel, GameState.playerHand);
         if (captureValid) {
             updateStatus(`Sum = ${sum} ✓  Click Capture (or add more cards to build).`);
         } else if (buildValid) {
@@ -232,16 +300,11 @@ function handleHandCardClick(card) {
         // Deselect
         selectedHandCard    = null;
         selectedCenterItems = [];
+        includeOpponentPile = false;
     } else {
         selectedHandCard    = card;
         selectedCenterItems = [];
-
-        // Auto-select matching face cards for face cards
-        if (isFaceCard(card)) {
-            selectedCenterItems = GameState.centerCards.filter(
-                item => item.type !== 'build' && isFaceCard(item) && item.rank === card.rank
-            );
-        }
+        includeOpponentPile = false;
     }
 
     renderGame();
@@ -254,25 +317,20 @@ function handleCenterItemClick(item) {
         updateStatus('Select a card from your hand first!');
         return;
     }
+    toggleCenterItem(item);
+    renderGame();
+    updateButtonStates();
+    updateActionHint();
+}
 
-    if (isFaceCard(selectedHandCard)) {
-        if (item.type !== 'build' && isFaceCard(item) && item.rank === selectedHandCard.rank) {
-            toggleCenterItem(item);
-        } else {
-            updateStatus(`${selectedHandCard.rank}s can only capture other ${selectedHandCard.rank}s.`);
-        }
-    } else {
-        if (item.type === 'build' && item.owner === 'player') {
-            // Can select own build for adding to it (extending build)
-            toggleCenterItem(item);
-        } else if (item.type === 'build' && item.owner === 'ai') {
-            // Allow capturing opponent's build if sum matches
-            toggleCenterItem(item);
-        } else {
-            toggleCenterItem(item);
-        }
+function handleAIPileTopClick() {
+    if (GameState.currentTurn !== 'player' || isAnimating) return;
+    if (!selectedHandCard) {
+        updateStatus('Select a card from your hand first!');
+        return;
     }
-
+    // Toggle the AI's pile top card in/out of the selection
+    includeOpponentPile = !includeOpponentPile;
     renderGame();
     updateButtonStates();
     updateActionHint();
@@ -287,14 +345,15 @@ function toggleCenterItem(item) {
 // ── Action handlers ───────────────────────────────────────────────────────────
 function handleCapture() {
     if (!selectedHandCard || isAnimating) return;
-    if (!isValidCapture(selectedHandCard, selectedCenterItems)) {
-        const sum = selectedCenterItems.reduce((s, i) => s + getItemValue(i), 0);
+    const fullSel = buildFullSelection();
+    if (!isValidCapture(selectedHandCard, fullSel)) {
+        const sum = fullSel.reduce((s, i) => s + getItemValue(i), 0);
         updateStatus(`Invalid capture — selected cards sum to ${sum}, but you played a ${selectedHandCard.value}.`);
         return;
     }
 
     const hc    = selectedHandCard;
-    const items = [...selectedCenterItems];
+    const items = [...fullSel];
     resetSelection();
 
     const result = executeCapture(hc, items, true);
@@ -311,15 +370,16 @@ function handleCapture() {
 
 function handleBuild() {
     if (!selectedHandCard || isAnimating) return;
-    if (!isValidBuild(selectedHandCard, selectedCenterItems, GameState.playerHand)) {
-        const sum    = selectedCenterItems.reduce((s, i) => s + getItemValue(i), 0);
+    const fullSel = buildFullSelection();
+    if (!isValidBuild(selectedHandCard, fullSel, GameState.playerHand)) {
+        const sum    = fullSel.reduce((s, i) => s + getItemValue(i), 0);
         const target = selectedHandCard.value + sum;
         updateStatus(`Invalid build — you need a ${target} in your hand to build to ${target}.`);
         return;
     }
 
     const hc    = selectedHandCard;
-    const items = [...selectedCenterItems];
+    const items = [...fullSel];
     const sum   = items.reduce((s, i) => s + getItemValue(i), 0);
     const target = hc.value + sum;
     resetSelection();
@@ -356,10 +416,6 @@ function afterPlayerMove() {
         setTimeout(endRoundUI, 900);
         return;
     }
-    if (status === 'newHands') {
-        renderGame();
-        updateStatus('New cards dealt!');
-    }
 
     GameState.currentTurn = 'ai';
     renderGame();
@@ -389,9 +445,6 @@ function doAITurn() {
             setTimeout(endRoundUI, 900);
             return;
         }
-        if (status === 'newHands') {
-            renderGame();
-        }
 
         GameState.currentTurn = 'player';
         renderGame();
@@ -406,7 +459,9 @@ function applyAIMove(move) {
             updateStatus(`AI got a SWEEP — cleared the table!`);
             flashSweep();
         } else {
-            updateStatus(`AI captured ${result.capturedCards.length} card${result.capturedCards.length !== 1 ? 's' : ''}.`);
+            const fromPile = move.centerItems.some(i => i.type === 'pileTopCard');
+            const extra    = fromPile ? ' (including your pile top card!)' : '';
+            updateStatus(`AI captured ${result.capturedCards.length} card${result.capturedCards.length !== 1 ? 's' : ''}${extra}.`);
         }
     } else if (move.type === 'build') {
         const result = executeBuild(move.handCard, move.centerItems, false);
@@ -491,6 +546,7 @@ function handlePlayAgain() {
 function resetSelection() {
     selectedHandCard    = null;
     selectedCenterItems = [];
+    includeOpponentPile = false;
 }
 
 function flashSweep() {
