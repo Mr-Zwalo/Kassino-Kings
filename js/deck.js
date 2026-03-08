@@ -1,13 +1,11 @@
 'use strict';
 
+// South African Casino uses a 40-card pack: A, 2-10 in each suit (no J, Q, K)
 const SUITS = ['hearts', 'diamonds', 'clubs', 'spades'];
-const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
 
 function getRankValue(rank) {
-    if (rank === 'A')  return 1;
-    if (rank === 'J')  return 11;
-    if (rank === 'Q')  return 12;
-    if (rank === 'K')  return 13;
+    if (rank === 'A') return 1;
     return parseInt(rank, 10);
 }
 
@@ -39,8 +37,9 @@ function shuffleDeck(deck) {
     return d;
 }
 
+// No face cards in the SA 40-card deck
 function isFaceCard(card) {
-    return card.rank === 'J' || card.rank === 'Q' || card.rank === 'K';
+    return false;
 }
 
 function isAce(card) {

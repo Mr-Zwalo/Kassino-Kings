@@ -2,54 +2,61 @@
 
 // ── Game State ────────────────────────────────────────────────────────────────
 const GameState = {
-    deck:           [],
-    centerCards:    [],   // cards and builds on the table
-    playerHand:     [],
-    aiHand:         [],
-    playerCaptures: [],   // face-up capture pile (top = last element)
-    aiCaptures:     [],   // face-up capture pile (top = last element)
-    playerSweeps:   0,
-    aiSweeps:       0,
-    playerScore:    0,    // cumulative game score
-    aiScore:        0,    // cumulative game score
-    lastCapture:    null, // 'player' | 'ai'
-    currentTurn:    'player',
-    gamePhase:      'playing', // 'playing' | 'roundOver' | 'gameOver'
-    roundNumber:    1
+    deck:            [],
+    centerCards:     [],   // cards and builds on the table
+    playerHand:      [],
+    aiHand:          [],
+    playerCaptures:  [],   // face-up capture pile (top = last element = lowest card)
+    aiCaptures:      [],   // face-up capture pile (top = last element = lowest card)
+    playerScore:     0,    // cumulative game score
+    aiScore:         0,    // cumulative game score
+    lastCapture:     null, // 'player' | 'ai'
+    currentTurn:     'player',
+    gamePhase:       'playing', // 'playing' | 'roundOver' | 'gameOver'
+    roundNumber:     1,
+    isSecondPhase:   false,       // true after the second deal of 10 cards
+    nextFirstPlayer: 'player'     // who goes first in the next round (SA: loser goes first)
 };
 
 // ── Initialization ────────────────────────────────────────────────────────────
 function initGame() {
-    GameState.playerScore = 0;
-    GameState.aiScore     = 0;
-    GameState.roundNumber = 1;
-    GameState.gamePhase   = 'playing';
+    GameState.playerScore     = 0;
+    GameState.aiScore         = 0;
+    GameState.roundNumber     = 1;
+    GameState.gamePhase       = 'playing';
+    GameState.nextFirstPlayer = 'player';
     startRound();
 }
 
 function startRound() {
-    const deck = createDeck();
+    const deck = createDeck(); // 40-card SA pack
     GameState.deck           = shuffleDeck(deck);
     GameState.centerCards    = [];
     GameState.playerHand     = [];
     GameState.aiHand         = [];
     GameState.playerCaptures = [];
     GameState.aiCaptures     = [];
-    GameState.playerSweeps   = 0;
-    GameState.aiSweeps       = 0;
     GameState.lastCapture    = null;
-    GameState.currentTurn    = 'player';
+    GameState.isSecondPhase  = false;
+    GameState.currentTurn    = GameState.nextFirstPlayer;
 
-    // Deal 4 cards face-up to center layout
-    for (let i = 0; i < 4; i++) {
-        GameState.centerCards.push(GameState.deck.pop());
-    }
-    // Deal ALL remaining 48 cards alternately to each player (24 each).
-    // In Swazi/African Casino the full deck is dealt out – there is no draw pile.
-    for (let i = 0; i < 24; i++) {
+    // SA rules: for 2 players, NO center cards are dealt at the start.
+    // The first player cannot capture — they must drift.
+    // Deal 10 cards to each player; 20 remain in deck for the second deal.
+    for (let i = 0; i < 10; i++) {
         GameState.playerHand.push(GameState.deck.pop());
         GameState.aiHand.push(GameState.deck.pop());
     }
+}
+
+function dealSecondHands() {
+    // SA rule: after both players use their first 10 cards, deal 10 more each.
+    for (let i = 0; i < 10; i++) {
+        GameState.playerHand.push(GameState.deck.pop());
+        GameState.aiHand.push(GameState.deck.pop());
+    }
+    // Second phase: players are always allowed to drift, even with a build on the table.
+    GameState.isSecondPhase = true;
 }
 
 // ── Item value helpers ────────────────────────────────────────────────────────
@@ -81,9 +88,9 @@ function findSubsetsWithSum(items, targetSum) {
 }
 
 // ── Pile top card helpers ─────────────────────────────────────────────────────
-// Returns a wrapper representing the top card of the OPPONENT's pile.
-// isPlayer = true  → human player is acting, so opponent's pile is the AI's pile.
-// isPlayer = false → AI is acting, so opponent's pile is the player's pile.
+// Returns the top-card wrapper for the OPPONENT's pile.
+// isPlayer = true  → player is acting; opponent = AI
+// isPlayer = false → AI is acting;     opponent = player
 function getOpponentTopPileItem(isPlayer) {
     const pile = isPlayer ? GameState.aiCaptures : GameState.playerCaptures;
     if (pile.length === 0) return null;
@@ -100,27 +107,18 @@ function getOpponentTopPileItem(isPlayer) {
 }
 
 // ── Capture validation ────────────────────────────────────────────────────────
-// In Swazi Casino ALL cards (including J=11, Q=12, K=13) use arithmetic values.
-// Face cards are NOT restricted to same-rank-only captures.
+// SA 40-card deck: all values are numeric (A=1, 2–10). No dual-value Ace.
 function isValidCapture(handCard, selectedItems) {
     if (!selectedItems || selectedItems.length === 0) return false;
     const sum = selectedItems.reduce((s, item) => s + getItemValue(item), 0);
-    if (isAce(handCard)) return sum === 1 || sum === 14;
     return sum === handCard.value;
 }
 
-// Return all valid capture combinations for handCard.
-// isPlayer: true = human player perspective (opponent is AI).
+// Return all valid capture combinations for handCard (includes opponent pile top).
 function getValidCaptureOptions(handCard, isPlayer = true) {
-    const center = GameState.centerCards;
-    const oppTop = getOpponentTopPileItem(isPlayer);
+    const center   = GameState.centerCards;
+    const oppTop   = getOpponentTopPileItem(isPlayer);
     const capturable = oppTop ? [...center, oppTop] : [...center];
-
-    if (isAce(handCard)) {
-        const s1  = findSubsetsWithSum(capturable, 1);
-        const s14 = findSubsetsWithSum(capturable, 14);
-        return [...s1, ...s14];
-    }
     return findSubsetsWithSum(capturable, handCard.value);
 }
 
@@ -130,7 +128,7 @@ function isValidBuild(handCard, selectedCenterItems, hand) {
 
     const who = (hand === GameState.playerHand) ? 'player' : 'ai';
 
-    // Cannot incorporate an opponent's build into your own new build
+    // Cannot incorporate an opponent's build
     if (selectedCenterItems.some(item => item.type === 'build' && item.owner !== who))
         return false;
 
@@ -138,14 +136,19 @@ function isValidBuild(handCard, selectedCenterItems, hand) {
     if (selectedCenterItems.some(item => item.type === 'pileTopCard' && item.pileOwner === who))
         return false;
 
+    // SA rule: can only steal opponent's pile top into a build if you already have an active build
+    if (selectedCenterItems.some(item => item.type === 'pileTopCard') && !hasActiveBuild(who))
+        return false;
+
     const selectedSum = selectedCenterItems.reduce((s, item) => s + getItemValue(item), 0);
     const target = handCard.value + selectedSum;
-    if (target < 2 || target > 14) return false;
 
-    // Must have another card in hand that can later capture this build
+    // SA 40-card deck: max card value is 10
+    if (target < 2 || target > 10) return false;
+
+    // Must hold another card in hand to capture this build later
     return hand.some(card => {
         if (card === handCard) return false;
-        if (card.rank === 'A') return target === 1 || target === 14;
         return card.value === target;
     });
 }
@@ -180,10 +183,8 @@ function executeCapture(handCard, selectedCenterItems, isPlayer) {
     for (const item of selectedCenterItems) {
         if (item.type === 'pileTopCard') {
             const pile = item.pileOwner === 'player' ? GameState.playerCaptures : GameState.aiCaptures;
-            const idx = pile.length - 1;
-            if (idx >= 0 && pile[idx].id === item.card.id) {
-                pile.splice(idx, 1);
-            }
+            const idx  = pile.length - 1;
+            if (idx >= 0 && pile[idx].id === item.card.id) pile.splice(idx, 1);
         }
     }
 
@@ -193,7 +194,10 @@ function executeCapture(handCard, selectedCenterItems, isPlayer) {
         item => !centerItems.some(sel => sel === item)
     );
 
-    // Add all captured cards to capture pile
+    // SA rule: place captured cards in numerical order with the LOWEST card on top.
+    // Sort descending so the lowest value ends up as the last element (top of pile).
+    capturedCards.sort((a, b) => b.value - a.value);
+
     if (isPlayer) {
         GameState.playerCaptures.push(...capturedCards);
     } else {
@@ -202,13 +206,9 @@ function executeCapture(handCard, selectedCenterItems, isPlayer) {
 
     GameState.lastCapture = who;
 
-    const isSweep = GameState.centerCards.length === 0;
-    if (isSweep) {
-        if (isPlayer) GameState.playerSweeps++;
-        else           GameState.aiSweeps++;
-    }
-
-    return { isSweep, capturedCards };
+    // Track whether the table was cleared (no score points in SA rules, but useful for UI)
+    const isTableClear = GameState.centerCards.length === 0;
+    return { isTableClear, capturedCards };
 }
 
 function executeBuild(handCard, selectedCenterItems, isPlayer) {
@@ -217,7 +217,6 @@ function executeBuild(handCard, selectedCenterItems, isPlayer) {
     const selectedSum = selectedCenterItems.reduce((s, item) => s + getItemValue(item), 0);
     const target = handCard.value + selectedSum;
 
-    // Collect all cards going into the build
     const buildCards = [handCard];
     for (const item of selectedCenterItems) {
         if (item.type === 'pileTopCard') {
@@ -227,25 +226,20 @@ function executeBuild(handCard, selectedCenterItems, isPlayer) {
         }
     }
 
-    // Remove hand card
     if (isPlayer) {
         GameState.playerHand = GameState.playerHand.filter(c => c.id !== handCard.id);
     } else {
         GameState.aiHand = GameState.aiHand.filter(c => c.id !== handCard.id);
     }
 
-    // Remove pile top cards from their piles
     for (const item of selectedCenterItems) {
         if (item.type === 'pileTopCard') {
             const pile = item.pileOwner === 'player' ? GameState.playerCaptures : GameState.aiCaptures;
-            const idx = pile.length - 1;
-            if (idx >= 0 && pile[idx].id === item.card.id) {
-                pile.splice(idx, 1);
-            }
+            const idx  = pile.length - 1;
+            if (idx >= 0 && pile[idx].id === item.card.id) pile.splice(idx, 1);
         }
     }
 
-    // Remove center items (non-pile)
     const centerItems = selectedCenterItems.filter(i => i.type !== 'pileTopCard');
     GameState.centerCards = GameState.centerCards.filter(
         item => !centerItems.some(sel => sel === item)
@@ -263,9 +257,11 @@ function executeBuild(handCard, selectedCenterItems, isPlayer) {
     return { targetValue: target, build };
 }
 
+// SA terminology: "drifting" = playing a card without capturing
 function executeTrail(handCard, isPlayer) {
-    if (isPlayer && hasActiveBuild('player')) {
-        return { error: "You can't trail while you have an active build in the center!" };
+    // SA rule: cannot drift with an active build (except in the second phase)
+    if (isPlayer && hasActiveBuild('player') && !GameState.isSecondPhase) {
+        return { error: "You have a build — you must capture or add to your build, not drift!" };
     }
 
     if (isPlayer) {
@@ -279,10 +275,17 @@ function executeTrail(handCard, isPlayer) {
 }
 
 // ── Round flow ────────────────────────────────────────────────────────────────
-// Returns: 'continue' | 'roundOver'
-// (No 'newHands' – Swazi Casino deals all cards at the start; there is no draw pile)
+// Returns: 'continue' | 'newHands' | 'roundOver'
 function checkAfterTurn() {
     if (GameState.playerHand.length > 0 || GameState.aiHand.length > 0) return 'continue';
+
+    // Both hands empty — check for second deal
+    if (GameState.deck.length > 0) {
+        dealSecondHands();
+        return 'newHands';
+    }
+
+    // All 40 cards played
     endRoundCleanup();
     return 'roundOver';
 }
@@ -302,7 +305,7 @@ function endRoundCleanup() {
     GameState.centerCards = [];
 }
 
-// ── Scoring ───────────────────────────────────────────────────────────────────
+// ── Scoring (South African Casino) ───────────────────────────────────────────
 function calculateRoundScores() {
     const p = GameState.playerCaptures;
     const a = GameState.aiCaptures;
@@ -313,58 +316,56 @@ function calculateRoundScores() {
     const scores = {
         player: {
             mostCards:    0,
-            mostSpades:   0,
+            fiveSpades:   0, // at least 5 spades
             littleCasino: 0,
             bigCasino:    0,
             aces:         0,
-            sweeps:       GameState.playerSweeps,
             total:        0,
             cardCount:    p.length,
             spadeCount:   pSpades
         },
         ai: {
             mostCards:    0,
-            mostSpades:   0,
+            fiveSpades:   0,
             littleCasino: 0,
             bigCasino:    0,
             aces:         0,
-            sweeps:       GameState.aiSweeps,
             total:        0,
             cardCount:    a.length,
             spadeCount:   aSpades
         }
     };
 
-    // Most cards (3 pts, tie = no one scores)
-    if (p.length > a.length)      scores.player.mostCards = 3;
-    else if (a.length > p.length) scores.ai.mostCards    = 3;
+    // Most cards: 2 pts; if tied, each gets 1 pt
+    if (p.length > a.length)      { scores.player.mostCards = 2; }
+    else if (a.length > p.length) { scores.ai.mostCards     = 2; }
+    else                          { scores.player.mostCards = 1; scores.ai.mostCards = 1; }
 
-    // Most spades (1 pt, tie = no one scores)
-    if (pSpades > aSpades)        scores.player.mostSpades = 1;
-    else if (aSpades > pSpades)   scores.ai.mostSpades    = 1;
+    // At least 5 spades: 1 pt (each qualifying player scores independently)
+    if (pSpades >= 5) scores.player.fiveSpades = 1;
+    if (aSpades >= 5) scores.ai.fiveSpades     = 1;
 
     // 2♠ Little Casino (1 pt)
     if      (p.some(c => c.rank === '2' && c.suit === 'spades')) scores.player.littleCasino = 1;
-    else if (a.some(c => c.rank === '2' && c.suit === 'spades')) scores.ai.littleCasino    = 1;
+    else if (a.some(c => c.rank === '2' && c.suit === 'spades')) scores.ai.littleCasino     = 1;
 
     // 10♦ Big Casino (2 pts)
     if      (p.some(c => c.rank === '10' && c.suit === 'diamonds')) scores.player.bigCasino = 2;
-    else if (a.some(c => c.rank === '10' && c.suit === 'diamonds')) scores.ai.bigCasino    = 2;
+    else if (a.some(c => c.rank === '10' && c.suit === 'diamonds')) scores.ai.bigCasino     = 2;
 
     // Aces (1 pt each)
     scores.player.aces = p.filter(c => c.rank === 'A').length;
     scores.ai.aces     = a.filter(c => c.rank === 'A').length;
 
-    // Totals
     scores.player.total =
-        scores.player.mostCards + scores.player.mostSpades +
+        scores.player.mostCards + scores.player.fiveSpades +
         scores.player.littleCasino + scores.player.bigCasino +
-        scores.player.aces + scores.player.sweeps;
+        scores.player.aces;
 
     scores.ai.total =
-        scores.ai.mostCards + scores.ai.mostSpades +
+        scores.ai.mostCards + scores.ai.fiveSpades +
         scores.ai.littleCasino + scores.ai.bigCasino +
-        scores.ai.aces + scores.ai.sweeps;
+        scores.ai.aces;
 
     return scores;
 }
@@ -373,6 +374,14 @@ function applyRoundScores(scores) {
     GameState.playerScore += scores.player.total;
     GameState.aiScore     += scores.ai.total;
     GameState.roundNumber++;
+
+    // SA rule: the loser of the previous round starts first in the next round
+    if (scores.player.total < scores.ai.total) {
+        GameState.nextFirstPlayer = 'player';
+    } else if (scores.ai.total < scores.player.total) {
+        GameState.nextFirstPlayer = 'ai';
+    }
+    // On a tie, keep the same first player
 }
 
 function checkGameOver() {

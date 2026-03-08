@@ -11,7 +11,7 @@ window.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     initGame();
     renderGame();
-    updateStatus('Welcome to Kassino Kings! Select a card from your hand to play.');
+    updateStatus('Welcome to Kassino Kings! No cards on the table — you must drift your first card.');
 });
 
 function el(id) { return document.getElementById(id); }
@@ -224,12 +224,12 @@ function renderScorePanel() {
 
     const pCapEl = el('player-round-info');
     const aCapEl = el('ai-round-info');
-    if (pCapEl) pCapEl.textContent = `Captured: ${GameState.playerCaptures.length}  Sweeps: ${GameState.playerSweeps}`;
-    if (aCapEl) aCapEl.textContent = `Captured: ${GameState.aiCaptures.length}  Sweeps: ${GameState.aiSweeps}`;
+    if (pCapEl) pCapEl.textContent = `Captured: ${GameState.playerCaptures.length}`;
+    if (aCapEl) aCapEl.textContent = `Captured: ${GameState.aiCaptures.length}`;
 }
 
 function updateDeckInfo() {
-    // In Swazi Casino the full deck is dealt out – show hand sizes instead
+    // SA Casino deals all cards in two batches; deck count shown if visible
     const countEl = el('deck-count');
     if (countEl) countEl.textContent = GameState.deck.length;
     const backEl = document.querySelector('.deck-card-back');
@@ -249,7 +249,8 @@ function updateButtonStates() {
     const buildOk = hasHand && hasCenter &&
         isValidBuild(selectedHandCard, fullSel, GameState.playerHand);
 
-    const trailOk = hasHand && !hasActiveBuild('player');
+    // SA rule: can drift freely except when you have a build in first phase
+    const trailOk = hasHand && (!hasActiveBuild('player') || GameState.isSecondPhase);
 
     el('btn-capture').disabled = !(isPlayerTurn && captureOk);
     el('btn-build').disabled   = !(isPlayerTurn && buildOk);
@@ -264,7 +265,11 @@ function updateStatus(msg) {
 
 function updateActionHint() {
     if (!selectedHandCard) {
-        updateStatus('Select a card from your hand to play.');
+        if (GameState.centerCards.length === 0 && GameState.aiCaptures.length === 0) {
+            updateStatus('No cards on the table — you must drift (play a card face-up).');
+        } else {
+            updateStatus('Select a card from your hand to play.');
+        }
         return;
     }
     const opts = getValidCaptureOptions(selectedHandCard, true);
@@ -272,9 +277,9 @@ function updateActionHint() {
 
     if (fullSel.length === 0) {
         if (opts.length > 0) {
-            updateStatus(`${cardToString(selectedHandCard)} selected — select center cards (or AI's pile top) to capture/build, or Trail.`);
+            updateStatus(`${cardToString(selectedHandCard)} selected — select center cards (or AI's pile top) to capture/build, or Drift.`);
         } else {
-            updateStatus(`${cardToString(selectedHandCard)} selected — no captures available. Select cards to build, or Trail.`);
+            updateStatus(`${cardToString(selectedHandCard)} selected — no captures available. Select cards to build, or Drift.`);
         }
     } else {
         const sum = fullSel.reduce((s, i) => s + getItemValue(i), 0);
@@ -358,9 +363,8 @@ function handleCapture() {
 
     const result = executeCapture(hc, items, true);
 
-    if (result.isSweep) {
-        updateStatus(`🌟 SWEEP! You cleared the table — +1 sweep point!`);
-        flashSweep();
+    if (result.isTableClear) {
+        updateStatus(`Table cleared! You captured ${result.capturedCards.length} cards!`);
     } else {
         updateStatus(`You captured ${result.capturedCards.length} card${result.capturedCards.length !== 1 ? 's' : ''}!`);
     }
@@ -402,7 +406,7 @@ function handleTrail() {
         renderGame();
         return;
     }
-    updateStatus(`Trailed ${cardToString(hc)} to the center.`);
+    updateStatus(`Drifted ${cardToString(hc)} to the center.`);
     afterPlayerMove();
 }
 
@@ -415,6 +419,11 @@ function afterPlayerMove() {
     if (status === 'roundOver') {
         setTimeout(endRoundUI, 900);
         return;
+    }
+
+    if (status === 'newHands') {
+        renderGame();
+        updateStatus('New cards dealt! Second phase — drifting is now always allowed.');
     }
 
     GameState.currentTurn = 'ai';
@@ -430,10 +439,10 @@ function doAITurn() {
         const move = getAIMove();
 
         if (!move && GameState.aiHand.length > 0) {
-            // Fallback: force trail first card
+            // Fallback: force drift first card
             const trailCard = GameState.aiHand[0];
             executeTrail(trailCard, false);
-            updateStatus(`AI trailed ${cardToString(trailCard)}.`);
+            updateStatus(`AI drifted ${cardToString(trailCard)}.`);
         } else if (move) {
             applyAIMove(move);
         }
@@ -446,6 +455,11 @@ function doAITurn() {
             return;
         }
 
+        if (status === 'newHands') {
+            renderGame();
+            updateStatus('New cards dealt! Second phase — drifting is now always allowed.');
+        }
+
         GameState.currentTurn = 'player';
         renderGame();
         updateStatus("Your turn! Select a card from your hand.");
@@ -455,9 +469,8 @@ function doAITurn() {
 function applyAIMove(move) {
     if (move.type === 'capture') {
         const result = executeCapture(move.handCard, move.centerItems, false);
-        if (result.isSweep) {
-            updateStatus(`AI got a SWEEP — cleared the table!`);
-            flashSweep();
+        if (result.isTableClear) {
+            updateStatus(`AI cleared the table and captured ${result.capturedCards.length} cards!`);
         } else {
             const fromPile = move.centerItems.some(i => i.type === 'pileTopCard');
             const extra    = fromPile ? ' (including your pile top card!)' : '';
@@ -468,7 +481,7 @@ function applyAIMove(move) {
         updateStatus(`AI built to ${result.targetValue}.`);
     } else if (move.type === 'trail') {
         executeTrail(move.handCard, false);
-        updateStatus(`AI trailed ${cardToString(move.handCard)}.`);
+        updateStatus(`AI drifted ${cardToString(move.handCard)}.`);
     }
 }
 
@@ -491,14 +504,13 @@ function showRoundScoresUI(scores) {
 
     el('score-breakdown').innerHTML =
         scoreTableHeader() +
-        makeScoreRow(`Cards captured (${scores.player.cardCount} vs ${scores.ai.cardCount})`,
+        makeScoreRow(`Most cards (${scores.player.cardCount} vs ${scores.ai.cardCount}) — 2pts, tie=1`,
             scores.player.mostCards, scores.ai.mostCards) +
-        makeScoreRow(`Most Spades (${scores.player.spadeCount} vs ${scores.ai.spadeCount})`,
-            scores.player.mostSpades, scores.ai.mostSpades) +
+        makeScoreRow(`5+ Spades (${scores.player.spadeCount} vs ${scores.ai.spadeCount})`,
+            scores.player.fiveSpades, scores.ai.fiveSpades) +
         makeScoreRow('2♠ Little Casino', scores.player.littleCasino, scores.ai.littleCasino) +
         makeScoreRow('10♦ Big Casino',   scores.player.bigCasino,    scores.ai.bigCasino) +
         makeScoreRow('Aces',             scores.player.aces,         scores.ai.aces) +
-        makeScoreRow('Sweeps',           scores.player.sweeps,       scores.ai.sweeps) +
         makeTotalRow('Round Total',      scores.player.total,        scores.ai.total) +
         makeTotalRow('Game Score',       GameState.playerScore,      GameState.aiScore);
 
@@ -531,7 +543,12 @@ function handleNextRound() {
     startRound();
     resetSelection();
     renderGame();
-    updateStatus('New round! Select a card from your hand.');
+    if (GameState.currentTurn === 'ai') {
+        updateStatus('AI goes first this round (loser starts).');
+        setTimeout(doAITurn, 1300);
+    } else {
+        updateStatus('New round! No cards on the table — you must drift your first card.');
+    }
 }
 
 function handlePlayAgain() {
@@ -539,7 +556,7 @@ function handlePlayAgain() {
     initGame();
     resetSelection();
     renderGame();
-    updateStatus('New game! Select a card from your hand.');
+    updateStatus('New game! No cards on the table — you must drift your first card.');
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
