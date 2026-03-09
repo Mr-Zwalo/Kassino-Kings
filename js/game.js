@@ -125,9 +125,17 @@ function isValidBuild(handCard, selectedCenterItems, hand) {
     if (selectedCenterItems.some(item => item.type === 'pileTopCard' && item.pileOwner === who))
         return false;
 
-    // Can only include opponent's pile top in a build when you already have an active build
-    if (selectedCenterItems.some(item => item.type === 'pileTopCard') && !hasMyBuild)
-        return false;
+    // Pile top rule: you may include the opponent's pile top in a build only when:
+    //  (a) it is the only center material (no other center cards selected alongside it), OR
+    //  (b) every other selected center item has the exact same value as the pile top card.
+    if (selectedCenterItems.some(item => item.type === 'pileTopCard')) {
+        const pileTop      = selectedCenterItems.find(i => i.type === 'pileTopCard');
+        const pileTopValue = pileTop.card.value;
+        const otherItems   = selectedCenterItems.filter(i => i.type !== 'pileTopCard');
+        if (otherItems.length > 0 && !otherItems.every(i => getItemValue(i) === pileTopValue)) {
+            return false;
+        }
+    }
 
     // Cannot include a drifted pile in a build
     if (selectedCenterItems.some(item => item.type === 'drifted'))

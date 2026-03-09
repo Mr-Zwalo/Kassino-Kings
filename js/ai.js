@@ -2,6 +2,18 @@
 
 const MIN_BUILD_TARGET_VALUE = 5; // SA deck max = 10; builds below 5 are rarely strategic
 
+// ── Pile-top build rule ───────────────────────────────────────────────────────
+// A subset used for building may include the opponent's pile top only when:
+//   (a) it is the sole center material in the subset (pile top alone), OR
+//   (b) every other item in the subset has the exact same value as the pile top.
+function isPileTopValidInSubset(subset) {
+    if (!subset.some(i => i.type === 'pileTopCard')) return true; // no pile top → always OK
+    const pileTop      = subset.find(i => i.type === 'pileTopCard');
+    const pileTopValue = pileTop.card.value;
+    const otherItems   = subset.filter(i => i.type !== 'pileTopCard');
+    return otherItems.length === 0 || otherItems.every(i => getItemValue(i) === pileTopValue);
+}
+
 // ── AI entry point ────────────────────────────────────────────────────────────
 function getAIMove() {
     const aiHasActiveBuild = hasActiveBuild('ai');
@@ -101,8 +113,9 @@ function findBestAIBuild() {
     const center           = GameState.centerCards;
     const aiHasActiveBuild = hasActiveBuild('ai');
 
-    // Can only steal opponent's pile top card in a build when AI already has a build
-    const playerTopItem = aiHasActiveBuild ? getOpponentTopPileItem(false) : null;
+    // Player's pile top is available as build material subject to the value-match rule
+    // (handled per-subset below).
+    const playerTopItem = getOpponentTopPileItem(false);
 
     // ── Try to steal the player's build (if not already stolen) ──────────────
     if (!aiHasActiveBuild) {
@@ -160,7 +173,7 @@ function findBestAIBuild() {
                     : findSubsetsWithSum(otherUsable, remaining).map(s => [myBuild, ...s]);
                 for (const subset of subsets) {
                     if (subset.length === 0) continue;
-                    if (subset.some(i => i.type === 'pileTopCard') && !aiHasActiveBuild) continue;
+                    if (!isPileTopValidInSubset(subset)) continue;
                     const captureCard = hand.find(c => c !== card && c.value === target);
                     if (captureCard) {
                         return { type: 'build', handCard: card, centerItems: subset, targetValue: target };
@@ -170,7 +183,7 @@ function findBestAIBuild() {
                 const subsets = findSubsetsWithSum(usable, needed);
                 for (const subset of subsets) {
                     if (subset.length === 0) continue;
-                    if (subset.some(i => i.type === 'pileTopCard') && !aiHasActiveBuild) continue;
+                    if (!isPileTopValidInSubset(subset)) continue;
                     const captureCard = hand.find(c => c !== card && c.value === target);
                     if (captureCard) {
                         return { type: 'build', handCard: card, centerItems: subset, targetValue: target };

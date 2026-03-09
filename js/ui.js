@@ -153,7 +153,15 @@ function renderAIPile() {
 
         // Show hint when a hand card is selected
         if (hintEl) {
-            hintEl.textContent = selectedHandCard ? '← click to include' : '';
+            if (selectedHandCard) {
+                const pileTopValue = topCard.value;
+                const otherSel = selectedCenterItems.filter(i => i.type !== 'pileTopCard');
+                const canUse = otherSel.length === 0 ||
+                    otherSel.every(i => getItemValue(i) === pileTopValue);
+                hintEl.textContent = canUse ? '← click to include' : `← needs ${pileTopValue} on table`;
+            } else {
+                hintEl.textContent = '';
+            }
         }
     } else {
         topArea.appendChild(makePileEmptyEl());
