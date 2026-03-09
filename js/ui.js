@@ -11,7 +11,7 @@ window.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     initGame();
     renderGame();
-    updateStatus('Welcome to Kassino Kings! No cards on the table — you must drift your first card.');
+    updateStatus('Welcome to Kassino Kings! Round 1 — select a card to play it or start building.');
 });
 
 function el(id) { return document.getElementById(id); }
@@ -19,13 +19,14 @@ function el(id) { return document.getElementById(id); }
 function setupEventListeners() {
     el('btn-capture').addEventListener('click', handleCapture);
     el('btn-build').addEventListener('click', handleBuild);
-    el('btn-trail').addEventListener('click', handleTrail);
+    el('btn-drift').addEventListener('click', handleDrift);
+    el('btn-play-card').addEventListener('click', handlePlayCard);
     el('btn-new-game').addEventListener('click', () => {
         if (confirm('Start a brand-new game? Current scores will be lost.')) {
             initGame();
             resetSelection();
             renderGame();
-            updateStatus('New game! Select a card from your hand to start.');
+            updateStatus('New game! No cards on the table — you must play a card first.');
         }
     });
     el('btn-next-round').addEventListener('click', handleNextRound);
@@ -84,7 +85,14 @@ function renderCenter() {
     const container = el('center-cards');
     container.innerHTML = '';
     for (const item of GameState.centerCards) {
-        const itemEl = item.type === 'build' ? buildBuildEl(item) : buildCardEl(item);
+        let itemEl;
+        if (item.type === 'build') {
+            itemEl = buildBuildEl(item);
+        } else if (item.type === 'drifted') {
+            itemEl = buildDriftedEl(item);
+        } else {
+            itemEl = buildCardEl(item);
+        }
 
         if (selectedCenterItems.some(s => s === item)) {
             itemEl.classList.add('center-selected');
@@ -217,7 +225,45 @@ function buildBuildEl(build) {
     return wrapper;
 }
 
-// ── Score panel ───────────────────────────────────────────────────────────────
+// ── Drifted pile element factory ──────────────────────────────────────────────
+// A drifted pile is an open pile anyone can capture with the matching card value.
+function buildDriftedEl(drifted) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'build-wrapper drifted-wrapper';
+    wrapper.dataset.driftedId = drifted.id;
+
+    const stack = document.createElement('div');
+    stack.className = 'build-stack';
+    const shown = drifted.cards.slice(0, Math.min(drifted.cards.length, 4));
+    shown.forEach((card, idx) => {
+        const cardEl = buildCardEl(card);
+        cardEl.style.left = `${idx * 18}px`;
+        cardEl.style.position = 'absolute';
+        cardEl.style.top = `${idx * -3}px`;
+        cardEl.style.zIndex = idx;
+        stack.appendChild(cardEl);
+    });
+    stack.style.width  = `${65 + (shown.length - 1) * 18}px`;
+    stack.style.height = '90px';
+
+    const label = document.createElement('div');
+    label.className = 'build-target-label drifted-label';
+    label.textContent = `⟳ ${drifted.value}`;
+
+    const noteEl = document.createElement('div');
+    noteEl.className = 'build-owner-label';
+    noteEl.textContent = 'Open pile';
+
+    wrapper.appendChild(label);
+    wrapper.appendChild(stack);
+    wrapper.appendChild(noteEl);
+
+    if (selectedCenterItems.some(s => s === drifted)) {
+        wrapper.classList.add('center-selected');
+    }
+    return wrapper;
+}
+
 function renderScorePanel() {
     el('player-game-score').textContent = GameState.playerScore;
     el('ai-game-score').textContent     = GameState.aiScore;
@@ -249,12 +295,16 @@ function updateButtonStates() {
     const buildOk = hasHand && hasCenter &&
         isValidBuild(selectedHandCard, fullSel, GameState.playerHand);
 
-    // SA rule: can drift freely except when you have a build in first phase
-    const trailOk = hasHand && (!hasActiveBuild('player') || GameState.isSecondPhase);
+    // Drift: play a matching card on your own build to convert it to an open pile
+    const driftOk = hasHand && isValidDrift(selectedHandCard, true);
 
-    el('btn-capture').disabled = !(isPlayerTurn && captureOk);
-    el('btn-build').disabled   = !(isPlayerTurn && buildOk);
-    el('btn-trail').disabled   = !(isPlayerTurn && trailOk);
+    // Play Card: place any card on the center table (blocked in round 1 with active build)
+    const playCardOk = hasHand && (!hasActiveBuild('player') || GameState.roundNumber !== 1);
+
+    el('btn-capture').disabled   = !(isPlayerTurn && captureOk);
+    el('btn-build').disabled     = !(isPlayerTurn && buildOk);
+    el('btn-drift').disabled     = !(isPlayerTurn && driftOk);
+    el('btn-play-card').disabled = !(isPlayerTurn && playCardOk);
 }
 
 // ── Status / hint ─────────────────────────────────────────────────────────────
@@ -265,8 +315,11 @@ function updateStatus(msg) {
 
 function updateActionHint() {
     if (!selectedHandCard) {
+        const hasBuild = hasActiveBuild('player');
         if (GameState.centerCards.length === 0 && GameState.aiCaptures.length === 0) {
-            updateStatus('No cards on the table — you must drift (play a card face-up).');
+            updateStatus('No cards on the table — select a card to play it to the center.');
+        } else if (hasBuild && GameState.roundNumber === 1) {
+            updateStatus('You have a build — select your build card to Drift it, or select center cards to Capture/Build.');
         } else {
             updateStatus('Select a card from your hand to play.');
         }
@@ -274,12 +327,15 @@ function updateActionHint() {
     }
     const opts = getValidCaptureOptions(selectedHandCard, true);
     const fullSel = buildFullSelection();
+    const canDrift = isValidDrift(selectedHandCard, true);
 
     if (fullSel.length === 0) {
-        if (opts.length > 0) {
-            updateStatus(`${cardToString(selectedHandCard)} selected — select center cards (or AI's pile top) to capture/build, or Drift.`);
+        if (canDrift) {
+            updateStatus(`${cardToString(selectedHandCard)} matches your build — click Drift to leave it open, or select center cards.`);
+        } else if (opts.length > 0) {
+            updateStatus(`${cardToString(selectedHandCard)} selected — select center cards (or AI's pile top) to capture/build, or Play Card.`);
         } else {
-            updateStatus(`${cardToString(selectedHandCard)} selected — no captures available. Select cards to build, or Drift.`);
+            updateStatus(`${cardToString(selectedHandCard)} selected — no captures available. Select cards to build, or Play Card.`);
         }
     } else {
         const sum = fullSel.reduce((s, i) => s + getItemValue(i), 0);
@@ -386,14 +442,43 @@ function handleBuild() {
     const items = [...fullSel];
     const sum   = items.reduce((s, i) => s + getItemValue(i), 0);
     const target = hc.value + sum;
+    const isSteal = items.some(i => i.type === 'build' && i.owner !== 'player');
     resetSelection();
 
     executeBuild(hc, items, true);
-    updateStatus(`Built to ${target}! Capture it on your next turn with a ${target}.`);
+    if (isSteal) {
+        updateStatus(`You stole the AI's build! Now targeting ${target} — capture with a ${target}.`);
+    } else {
+        updateStatus(`Built to ${target}! Capture it on your next turn with a ${target}.`);
+    }
     afterPlayerMove();
 }
 
-function handleTrail() {
+// Drift: intentionally not capturing your own build — play the capture card onto it,
+// converting it to an open pile that anyone can capture.
+function handleDrift() {
+    if (!selectedHandCard || isAnimating) return;
+
+    const hc = selectedHandCard;
+    if (!isValidDrift(hc, true)) {
+        updateStatus('Drift requires your build\'s capture card — select that card first.');
+        return;
+    }
+    resetSelection();
+
+    const result = executeDrift(hc, true);
+    if (result.error) {
+        selectedHandCard = hc; // restore
+        updateStatus(result.error);
+        renderGame();
+        return;
+    }
+    updateStatus(`Drifted your build (value ${hc.value}) — it stays on the table as an open pile!`);
+    afterPlayerMove();
+}
+
+// Play Card: place a card face-up on the center table (no capture).
+function handlePlayCard() {
     if (!selectedHandCard || isAnimating) return;
 
     const hc = selectedHandCard;
@@ -406,7 +491,7 @@ function handleTrail() {
         renderGame();
         return;
     }
-    updateStatus(`Drifted ${cardToString(hc)} to the center.`);
+    updateStatus(`Played ${cardToString(hc)} to the center.`);
     afterPlayerMove();
 }
 
@@ -419,11 +504,6 @@ function afterPlayerMove() {
     if (status === 'roundOver') {
         setTimeout(endRoundUI, 900);
         return;
-    }
-
-    if (status === 'newHands') {
-        renderGame();
-        updateStatus('New cards dealt! Second phase — drifting is now always allowed.');
     }
 
     GameState.currentTurn = 'ai';
@@ -439,10 +519,10 @@ function doAITurn() {
         const move = getAIMove();
 
         if (!move && GameState.aiHand.length > 0) {
-            // Fallback: force drift first card
+            // Safety fallback: force play first card (should rarely trigger)
             const trailCard = GameState.aiHand[0];
             executeTrail(trailCard, false);
-            updateStatus(`AI drifted ${cardToString(trailCard)}.`);
+            updateStatus(`AI played ${cardToString(trailCard)} to the center.`);
         } else if (move) {
             applyAIMove(move);
         }
@@ -453,11 +533,6 @@ function doAITurn() {
         if (status === 'roundOver') {
             setTimeout(endRoundUI, 900);
             return;
-        }
-
-        if (status === 'newHands') {
-            renderGame();
-            updateStatus('New cards dealt! Second phase — drifting is now always allowed.');
         }
 
         GameState.currentTurn = 'player';
@@ -478,10 +553,20 @@ function applyAIMove(move) {
         }
     } else if (move.type === 'build') {
         const result = executeBuild(move.handCard, move.centerItems, false);
-        updateStatus(`AI built to ${result.targetValue}.`);
+        const isSteal = move.centerItems.some(i => i.type === 'build' && i.owner === 'player');
+        if (isSteal) {
+            updateStatus(`AI stole your build! Now targeting ${result.targetValue}.`);
+        } else {
+            updateStatus(`AI built to ${result.targetValue}.`);
+        }
+    } else if (move.type === 'drift') {
+        const result = executeDrift(move.handCard, false);
+        if (result.success) {
+            updateStatus(`AI drifted its build (value ${move.handCard.value}) — now an open pile!`);
+        }
     } else if (move.type === 'trail') {
         executeTrail(move.handCard, false);
-        updateStatus(`AI drifted ${cardToString(move.handCard)}.`);
+        updateStatus(`AI played ${cardToString(move.handCard)} to the center.`);
     }
 }
 
@@ -533,7 +618,7 @@ function showGameOverUI() {
                 <span class="fscore-val ai">${GameState.aiScore}</span>
             </div>
         </div>
-        <p class="gameover-note">First to 11 points wins.</p>`;
+        <p class="gameover-note">Game over after 2 rounds. Most points wins!</p>`;
 
     el('gameover-overlay').classList.remove('hidden');
 }
@@ -544,10 +629,10 @@ function handleNextRound() {
     resetSelection();
     renderGame();
     if (GameState.currentTurn === 'ai') {
-        updateStatus('AI goes first this round (loser starts).');
+        updateStatus('Round 2 — AI goes first (loser starts). No center cards — AI will play first.');
         setTimeout(doAITurn, 1300);
     } else {
-        updateStatus('New round! No cards on the table — you must drift your first card.');
+        updateStatus('Round 2! No center cards — select a card to play it or start building.');
     }
 }
 
@@ -556,7 +641,7 @@ function handlePlayAgain() {
     initGame();
     resetSelection();
     renderGame();
-    updateStatus('New game! No cards on the table — you must drift your first card.');
+    updateStatus('New game! Round 1 — select a card to play it or start building.');
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

@@ -3,66 +3,55 @@
 // ── Game State ────────────────────────────────────────────────────────────────
 const GameState = {
     deck:            [],
-    centerCards:     [],   // cards and builds on the table
+    centerCards:     [],   // cards, builds, and drifted piles on the table
     playerHand:      [],
     aiHand:          [],
-    playerCaptures:  [],   // face-up capture pile (top = last element = lowest card)
-    aiCaptures:      [],   // face-up capture pile (top = last element = lowest card)
+    playerCaptures:  [],   // face-up capture pile (top = last element = the capturing card)
+    aiCaptures:      [],   // face-up capture pile (top = last element = the capturing card)
     playerScore:     0,    // cumulative game score
     aiScore:         0,    // cumulative game score
     lastCapture:     null, // 'player' | 'ai'
     currentTurn:     'player',
     gamePhase:       'playing', // 'playing' | 'roundOver' | 'gameOver'
-    roundNumber:     1,
-    isSecondPhase:   false,       // true after the second deal of 10 cards
-    nextFirstPlayer: 'player'     // who goes first in the next round (SA: loser goes first)
+    roundNumber:     1,         // 1 or 2; game ends after round 2
+    nextFirstPlayer: 'player'   // who goes first in the next round
 };
 
 // ── Initialization ────────────────────────────────────────────────────────────
+// The 40-card deck is created ONCE per game and split across the two rounds.
 function initGame() {
     GameState.playerScore     = 0;
     GameState.aiScore         = 0;
     GameState.roundNumber     = 1;
     GameState.gamePhase       = 'playing';
     GameState.nextFirstPlayer = 'player';
+    GameState.deck            = shuffleDeck(createDeck()); // one deck for the whole game
     startRound();
 }
 
+// Deal 10 cards each from the shared deck and reset per-round state.
+// Called twice per game (round 1 and round 2).
 function startRound() {
-    const deck = createDeck(); // 40-card SA pack
-    GameState.deck           = shuffleDeck(deck);
     GameState.centerCards    = [];
     GameState.playerHand     = [];
     GameState.aiHand         = [];
     GameState.playerCaptures = [];
     GameState.aiCaptures     = [];
     GameState.lastCapture    = null;
-    GameState.isSecondPhase  = false;
     GameState.currentTurn    = GameState.nextFirstPlayer;
 
-    // SA rules: for 2 players, NO center cards are dealt at the start.
-    // The first player cannot capture — they must drift.
-    // Deal 10 cards to each player; 20 remain in deck for the second deal.
+    // Deal 10 cards to each player from the shared deck.
     for (let i = 0; i < 10; i++) {
         GameState.playerHand.push(GameState.deck.pop());
         GameState.aiHand.push(GameState.deck.pop());
     }
-}
-
-function dealSecondHands() {
-    // SA rule: after both players use their first 10 cards, deal 10 more each.
-    for (let i = 0; i < 10; i++) {
-        GameState.playerHand.push(GameState.deck.pop());
-        GameState.aiHand.push(GameState.deck.pop());
-    }
-    // Second phase: players are always allowed to drift, even with a build on the table.
-    GameState.isSecondPhase = true;
 }
 
 // ── Item value helpers ────────────────────────────────────────────────────────
 function getItemValue(item) {
-    if (item.type === 'build')        return item.targetValue;
-    if (item.type === 'pileTopCard')  return item.card.value;
+    if (item.type === 'build')       return item.targetValue;
+    if (item.type === 'drifted')     return item.value;
+    if (item.type === 'pileTopCard') return item.card.value;
     return item.value;
 }
 
@@ -128,17 +117,32 @@ function isValidBuild(handCard, selectedCenterItems, hand) {
 
     const who = (hand === GameState.playerHand) ? 'player' : 'ai';
 
-    // Cannot incorporate an opponent's build
-    if (selectedCenterItems.some(item => item.type === 'build' && item.owner !== who))
-        return false;
+    const hasMyBuild        = hasActiveBuild(who);
+    const myBuildSelected   = selectedCenterItems.some(item => item.type === 'build' && item.owner === who);
+    const oppBuildSelected  = selectedCenterItems.some(item => item.type === 'build' && item.owner !== who);
 
     // Cannot use your own pile's top card as build material
     if (selectedCenterItems.some(item => item.type === 'pileTopCard' && item.pileOwner === who))
         return false;
 
-    // SA rule: can only steal opponent's pile top into a build if you already have an active build
-    if (selectedCenterItems.some(item => item.type === 'pileTopCard') && !hasActiveBuild(who))
+    // Can only include opponent's pile top in a build when you already have an active build
+    if (selectedCenterItems.some(item => item.type === 'pileTopCard') && !hasMyBuild)
         return false;
+
+    // Cannot include a drifted pile in a build
+    if (selectedCenterItems.some(item => item.type === 'drifted'))
+        return false;
+
+    // ── Steal opponent's build ────────────────────────────────────────────────
+    // Allowed once per build; you must NOT already own a build.
+    if (oppBuildSelected) {
+        if (hasMyBuild) return false; // can't steal while owning a build
+        const oppBuild = selectedCenterItems.find(item => item.type === 'build' && item.owner !== who);
+        if (oppBuild && oppBuild.stolen) return false; // already been stolen once
+    }
+
+    // ── One build per player: must extend existing build if one is active ─────
+    if (hasMyBuild && !myBuildSelected && !oppBuildSelected) return false;
 
     const selectedSum = selectedCenterItems.reduce((s, item) => s + getItemValue(item), 0);
     const target = handCard.value + selectedSum;
@@ -158,6 +162,16 @@ function hasActiveBuild(who) {
     return GameState.centerCards.some(item => item.type === 'build' && item.owner === who);
 }
 
+// ── Drift validation ──────────────────────────────────────────────────────────
+// Drifting: intentionally not capturing your building by playing the capture card
+// on top of it — the build becomes an open pile anyone can capture.
+function isValidDrift(handCard, isPlayer) {
+    const who = isPlayer ? 'player' : 'ai';
+    const myBuild = GameState.centerCards.find(item => item.type === 'build' && item.owner === who);
+    if (!myBuild) return false;
+    return handCard.value === myBuild.targetValue;
+}
+
 // ── Execute moves ─────────────────────────────────────────────────────────────
 function executeCapture(handCard, selectedCenterItems, isPlayer) {
     const who = isPlayer ? 'player' : 'ai';
@@ -169,13 +183,15 @@ function executeCapture(handCard, selectedCenterItems, isPlayer) {
         GameState.aiHand = GameState.aiHand.filter(c => c.id !== handCard.id);
     }
 
-    // Flatten all captured cards (handle pileTopCard, build, and regular cards)
-    const capturedCards = [handCard];
+    // Flatten all captured cards (handle pileTopCard, build, drifted, and regular cards)
+    const capturedCards = [];
     for (const item of selectedCenterItems) {
         if (item.type === 'pileTopCard') {
             capturedCards.push(item.card);
+        } else if (item.type === 'build' || item.type === 'drifted') {
+            capturedCards.push(...item.cards);
         } else {
-            capturedCards.push(...(item.type === 'build' ? item.cards : [item]));
+            capturedCards.push(item);
         }
     }
 
@@ -194,29 +210,31 @@ function executeCapture(handCard, selectedCenterItems, isPlayer) {
         item => !centerItems.some(sel => sel === item)
     );
 
-    // SA rule: place captured cards in numerical order with the LOWEST card on top.
-    // Sort descending so the lowest value ends up as the last element (top of pile).
+    // Sort captured cards: highest at bottom (index 0), capturing card on top (last)
     capturedCards.sort((a, b) => b.value - a.value);
+    const sortedCards = [...capturedCards, handCard]; // capturing card goes on top
 
     if (isPlayer) {
-        GameState.playerCaptures.push(...capturedCards);
+        GameState.playerCaptures.push(...sortedCards);
     } else {
-        GameState.aiCaptures.push(...capturedCards);
+        GameState.aiCaptures.push(...sortedCards);
     }
 
     GameState.lastCapture = who;
 
-    // Track whether the table was cleared (no score points in SA rules, but useful for UI)
     const isTableClear = GameState.centerCards.length === 0;
-    return { isTableClear, capturedCards };
+    return { isTableClear, capturedCards: sortedCards };
 }
 
 function executeBuild(handCard, selectedCenterItems, isPlayer) {
     const who = isPlayer ? 'player' : 'ai';
 
+    const isSteal = selectedCenterItems.some(item => item.type === 'build' && item.owner !== who);
+
     const selectedSum = selectedCenterItems.reduce((s, item) => s + getItemValue(item), 0);
     const target = handCard.value + selectedSum;
 
+    // Collect all cards going into the new build
     const buildCards = [handCard];
     for (const item of selectedCenterItems) {
         if (item.type === 'pileTopCard') {
@@ -245,11 +263,15 @@ function executeBuild(handCard, selectedCenterItems, isPlayer) {
         item => !centerItems.some(sel => sel === item)
     );
 
+    // Sort: highest card at index 0 (bottom of visual stack), lowest on top
+    buildCards.sort((a, b) => b.value - a.value);
+
     const build = {
         type:        'build',
         cards:       buildCards,
         targetValue: target,
         owner:       who,
+        stolen:      isSteal, // stolen builds cannot be stolen a second time
         id:          `build_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
     };
     GameState.centerCards.push(build);
@@ -257,11 +279,44 @@ function executeBuild(handCard, selectedCenterItems, isPlayer) {
     return { targetValue: target, build };
 }
 
-// SA terminology: "drifting" = playing a card without capturing
+// "Drift" your own build: play the capture card on top of the build, converting
+// it to an open pile that anyone can capture.
+function executeDrift(handCard, isPlayer) {
+    const who = isPlayer ? 'player' : 'ai';
+    const myBuild = GameState.centerCards.find(item => item.type === 'build' && item.owner === who);
+    if (!myBuild) return { error: 'No active build to drift.' };
+    if (handCard.value !== myBuild.targetValue) {
+        return { error: `You must play a ${myBuild.targetValue} to drift your build.` };
+    }
+
+    if (isPlayer) {
+        GameState.playerHand = GameState.playerHand.filter(c => c.id !== handCard.id);
+    } else {
+        GameState.aiHand = GameState.aiHand.filter(c => c.id !== handCard.id);
+    }
+
+    // Convert the build to an open drifted pile (hand card goes on top)
+    const drifted = {
+        type:  'drifted',
+        cards: [...myBuild.cards, handCard], // original build cards + drift card on top
+        value: handCard.value,
+        id:    `drifted_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    };
+
+    GameState.centerCards = GameState.centerCards.filter(item => item !== myBuild);
+    GameState.centerCards.push(drifted);
+
+    return { success: true, drifted };
+}
+
+// "Play Card": place a card face-up on the center table without capturing.
+// In round 1, this is blocked if the player has an active build.
 function executeTrail(handCard, isPlayer) {
-    // SA rule: cannot drift with an active build (except in the second phase)
-    if (isPlayer && hasActiveBuild('player') && !GameState.isSecondPhase) {
-        return { error: "You have a build — you must capture or add to your build, not drift!" };
+    if (isPlayer && hasActiveBuild('player') && GameState.roundNumber === 1) {
+        return { error: "Round 1: You have a build — you must capture or drift it, not play a card!" };
+    }
+    if (!isPlayer && hasActiveBuild('ai') && GameState.roundNumber === 1) {
+        return { error: "AI has a build in round 1." };
     }
 
     if (isPlayer) {
@@ -275,17 +330,11 @@ function executeTrail(handCard, isPlayer) {
 }
 
 // ── Round flow ────────────────────────────────────────────────────────────────
-// Returns: 'continue' | 'newHands' | 'roundOver'
+// Returns: 'continue' | 'roundOver'
 function checkAfterTurn() {
     if (GameState.playerHand.length > 0 || GameState.aiHand.length > 0) return 'continue';
 
-    // Both hands empty — check for second deal
-    if (GameState.deck.length > 0) {
-        dealSecondHands();
-        return 'newHands';
-    }
-
-    // All 40 cards played
+    // Both hands empty — round is over
     endRoundCleanup();
     return 'roundOver';
 }
@@ -294,7 +343,11 @@ function endRoundCleanup() {
     if (GameState.centerCards.length > 0 && GameState.lastCapture) {
         const remaining = [];
         for (const item of GameState.centerCards) {
-            remaining.push(...(item.type === 'build' ? item.cards : [item]));
+            if (item.type === 'build' || item.type === 'drifted') {
+                remaining.push(...item.cards);
+            } else {
+                remaining.push(item);
+            }
         }
         if (GameState.lastCapture === 'player') {
             GameState.playerCaptures.push(...remaining);
@@ -375,7 +428,7 @@ function applyRoundScores(scores) {
     GameState.aiScore     += scores.ai.total;
     GameState.roundNumber++;
 
-    // SA rule: the loser of the previous round starts first in the next round
+    // The loser of the previous round starts first in the next round
     if (scores.player.total < scores.ai.total) {
         GameState.nextFirstPlayer = 'player';
     } else if (scores.ai.total < scores.player.total) {
@@ -384,8 +437,9 @@ function applyRoundScores(scores) {
     // On a tie, keep the same first player
 }
 
+// Two-player Kassino is played over exactly two rounds.
 function checkGameOver() {
-    return GameState.playerScore >= 11 || GameState.aiScore >= 11;
+    return GameState.roundNumber > 2;
 }
 
 function nextTurn() {

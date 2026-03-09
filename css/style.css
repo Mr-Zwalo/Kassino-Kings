@@ -407,6 +407,14 @@ html, body {
 .build-owner-label.owner-player { color: #7af; }
 .build-owner-label.owner-ai     { color: #f88; }
 
+/* Drifted pile — open pile anyone can capture */
+.drifted-wrapper .drifted-label {
+    background: #4a7fc1;
+    color: #fff;
+}
+.drifted-wrapper:hover { transform: translateY(-4px); }
+.drifted-wrapper.center-selected { filter: drop-shadow(0 0 8px rgba(0,200,255,.7)); }
+
 /* ── Buttons ─────────────────────────────────────────────────────────────────*/
 .action-btn {
     padding: 9px 20px;
