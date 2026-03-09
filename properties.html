@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuxeEstates — Premium Property Marketplace</title>
+    <meta name="description" content="Discover extraordinary properties. Browse luxury homes, apartments and estates with virtual tours, interactive maps and AI-powered lifestyle matching.">
+    <link rel="stylesheet" href="css/properties.css">
+</head>
+<body>
+
+<!-- ── NAVIGATION ───────────────────────────────────────────────────────── -->
+<nav id="nav" role="navigation" aria-label="Main navigation">
+    <div class="container nav-inner">
+        <a href="#" class="nav-logo" aria-label="LuxeEstates home">
+            <div class="nav-logo-icon" aria-hidden="true">🏡</div>
+            <div>
+                <span class="nav-logo-text">LuxeEstates</span>
+                <span class="nav-logo-sub">Premium Properties</span>
+            </div>
+        </a>
+
+        <ul class="nav-links" id="nav-links" role="list">
+            <li><a href="#listings" class="nav-links-item">Browse</a></li>
+            <li><a href="#featured-section" class="nav-links-item">Featured</a></li>
+            <li><a href="#calculator-section" class="nav-links-item">Calculator</a></li>
+            <li><a href="#neighborhood-section" class="nav-links-item">Neighborhoods</a></li>
+            <li><a href="#contact-section" class="nav-links-item">Contact</a></li>
+            <li><a href="index.html" class="nav-links-item nav-game-link" title="Play Kassino Kings">♠ Play Game</a></li>
+            <li><a href="#contact-section" class="nav-links-item nav-cta">List Your Property</a></li>
+        </ul>
+
+        <button id="nav-hamburger" aria-label="Toggle menu" aria-expanded="false">
+            <span></span><span></span><span></span>
+        </button>
+    </div>
+</nav>
+
+<!-- ── HERO ─────────────────────────────────────────────────────────────── -->
+<section id="hero" aria-label="Hero">
+    <div class="hero-bg" aria-hidden="true"></div>
+    <div class="hero-grid" aria-hidden="true"></div>
+
+    <div class="container">
+        <div class="hero-content">
+            <!-- Left text -->
+            <div class="hero-text">
+                <div class="hero-badge" aria-live="polite">
+                    <span class="hero-badge-dot" aria-hidden="true"></span>
+                    <span>New listings every week</span>
+                </div>
+
+                <h1 class="hero-title">
+                    <span class="hero-title-line">Find Your</span>
+                    <span class="hero-title-line hero-title-accent">Dream Home</span>
+                    <span class="hero-title-line">Live Differently.</span>
+                </h1>
+
+                <p class="hero-desc">
+                    Explore premium properties matched to your lifestyle — from waterfront estates
+                    to urban penthouses. We go beyond listings to connect you with a life you'll love.
+                </p>
+
+                <div class="hero-actions">
+                    <a href="#listings" class="btn btn-primary btn-lg">
+                        <span>🔍</span> Browse Properties
+                    </a>
+                    <a href="#calculator-section" class="btn btn-outline btn-lg">
+                        <span>🧮</span> Mortgage Calculator
+                    </a>
+                </div>
+
+                <div class="hero-stats" aria-label="Key statistics">
+                    <div class="stat-item">
+                        <div class="stat-number"><span class="counter" data-target="248">0</span><sup>+</sup></div>
+                        <div class="stat-label">Active Listings</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number"><span class="counter" data-target="1200">0</span><sup>+</sup></div>
+                        <div class="stat-label">Homes Sold</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number"><span class="counter" data-target="98">0</span><sup>%</sup></div>
+                        <div class="stat-label">Client Satisfaction</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right visual cards -->
+            <div class="hero-visual" aria-hidden="true">
+                <div class="hero-main-card">
+                    <div class="hero-property-img-placeholder prop-color-1">
+                        <div class="house-icon">🏰</div>
+                        <div class="prop-tag">Featured Property</div>
+                    </div>
+                    <div class="hero-badge-tag">New Listing</div>
+                    <div class="hero-card-info">
+                        <div>
+                            <div class="hero-card-name">Skyline Penthouse</div>
+                            <div class="hero-card-loc">📍 Mbabane Heights</div>
+                        </div>
+                        <div>
+                            <div class="hero-card-price">E 4.2M</div>
+                            <div class="hero-card-price-sub">4 bed · 3 bath</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hero-mini-cards">
+                    <div class="hero-mini-card" tabindex="0" role="button" aria-label="Virtual Tours feature">
+                        <div class="hero-mini-icon">🎬</div>
+                        <div>
+                            <div class="hero-mini-label">Feature</div>
+                            <div class="hero-mini-value">Virtual Tours</div>
+                        </div>
+                    </div>
+                    <div class="hero-mini-card" tabindex="0" role="button" aria-label="Smart Matching feature">
+                        <div class="hero-mini-icon">✨</div>
+                        <div>
+                            <div class="hero-mini-label">Feature</div>
+                            <div class="hero-mini-value">Smart Matching</div>
+                        </div>
+                    </div>
+                    <div class="hero-mini-card" tabindex="0" role="button" aria-label="Secure Payments feature">
+                        <div class="hero-mini-icon">🔒</div>
+                        <div>
+                            <div class="hero-mini-label">Feature</div>
+                            <div class="hero-mini-value">Secure Payments</div>
+                        </div>
+                    </div>
+                    <div class="hero-mini-card" tabindex="0" role="button" aria-label="Expert Agents feature">
+                        <div class="hero-mini-icon">🏆</div>
+                        <div>
+                            <div class="hero-mini-label">Feature</div>
+                            <div class="hero-mini-value">Expert Agents</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── SEARCH BAR ─────────────────────────────────────────────────────────── -->
+<section id="search-section" aria-label="Property search">
+    <div class="container">
+        <form class="search-bar" id="search-form" role="search" aria-label="Search properties">
+            <div class="search-field">
+                <span class="search-field-icon" aria-hidden="true">📍</span>
+                <div class="search-field-inner">
+                    <label for="search-location">Location</label>
+                    <input id="search-location" type="text" placeholder="City, neighbourhood…" autocomplete="off">
+                </div>
+            </div>
+
+            <div class="search-field">
+                <span class="search-field-icon" aria-hidden="true">🏠</span>
+                <div class="search-field-inner">
+                    <label for="search-type">Property Type</label>
+                    <select id="search-type" aria-label="Property type">
+                        <option value="">All Types</option>
+                        <option value="house">House</option>
+                        <option value="apartment">Apartment</option>
+                        <option value="villa">Villa</option>
+                        <option value="penthouse">Penthouse</option>
+                        <option value="townhouse">Townhouse</option>
+                        <option value="estate">Estate</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="search-field">
+                <span class="search-field-icon" aria-hidden="true">💰</span>
+                <div class="search-field-inner">
+                    <label for="search-price">Max Price</label>
+                    <select id="search-price" aria-label="Maximum price">
+                        <option value="">Any Price</option>
+                        <option value="500000">E 500 000</option>
+                        <option value="1000000">E 1 000 000</option>
+                        <option value="2000000">E 2 000 000</option>
+                        <option value="5000000">E 5 000 000</option>
+                        <option value="10000000">E 10 000 000+</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="search-field">
+                <span class="search-field-icon" aria-hidden="true">🛏</span>
+                <div class="search-field-inner">
+                    <label for="search-beds">Bedrooms</label>
+                    <select id="search-beds" aria-label="Minimum bedrooms">
+                        <option value="">Any</option>
+                        <option value="1">1+</option>
+                        <option value="2">2+</option>
+                        <option value="3">3+</option>
+                        <option value="4">4+</option>
+                        <option value="5">5+</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" id="btn-search-main" aria-label="Search">
+                <span>🔍</span> Search
+            </button>
+        </form>
+    </div>
+</section>
+
+<!-- ── LISTINGS ───────────────────────────────────────────────────────────── -->
+<section id="listings" class="section" aria-label="Property listings">
+    <div class="container">
+        <div class="filter-tabs" role="tablist" aria-label="Property type filters" id="filter-tabs">
+            <button class="filter-tab active" data-filter="all" role="tab" aria-selected="true">
+                All <span class="filter-tab-count" id="count-all">0</span>
+            </button>
+            <button class="filter-tab" data-filter="house" role="tab" aria-selected="false">
+                🏠 Houses <span class="filter-tab-count" id="count-house">0</span>
+            </button>
+            <button class="filter-tab" data-filter="apartment" role="tab" aria-selected="false">
+                🏢 Apartments <span class="filter-tab-count" id="count-apartment">0</span>
+            </button>
+            <button class="filter-tab" data-filter="villa" role="tab" aria-selected="false">
+                🏖 Villas <span class="filter-tab-count" id="count-villa">0</span>
+            </button>
+            <button class="filter-tab" data-filter="penthouse" role="tab" aria-selected="false">
+                🌆 Penthouses <span class="filter-tab-count" id="count-penthouse">0</span>
+            </button>
+            <button class="filter-tab" data-filter="estate" role="tab" aria-selected="false">
+                🏰 Estates <span class="filter-tab-count" id="count-estate">0</span>
+            </button>
+        </div>
+
+        <div class="listing-header">
+            <p class="listing-count" aria-live="polite" id="listing-count-text">Showing <strong id="visible-count">0</strong> properties</p>
+            <select class="sort-select" id="sort-select" aria-label="Sort properties">
+                <option value="default">Sort: Featured</option>
+                <option value="price-asc">Price: Low to High</option>
+                <option value="price-desc">Price: High to Low</option>
+                <option value="newest">Newest First</option>
+                <option value="beds-desc">Most Bedrooms</option>
+            </select>
+        </div>
+
+        <div class="properties-grid" id="properties-grid" role="list" aria-label="Property listings"></div>
+
+        <div style="text-align:center; margin-top:36px;">
+            <button class="btn btn-outline" id="btn-load-more" style="display:none">
+                Load More Properties
+            </button>
+        </div>
+    </div>
+</section>
+
+<!-- ── FEATURED PROPERTY ──────────────────────────────────────────────────── -->
+<section id="featured-section" class="section section-alt" aria-label="Featured property">
+    <div class="container">
+        <div class="section-header">
+            <span class="section-eyebrow">Spotlight</span>
+            <h2 class="section-title">Property of the Month</h2>
+            <p class="section-desc">Our hand-picked crown jewel — a rare opportunity that combines prestige, comfort and investment value.</p>
+        </div>
+
+        <div class="featured-showcase">
+            <div class="featured-visual">
+                <div class="featured-img">
+                    <div class="feat-house">🏰</div>
+                    <div class="feat-label">Exclusive Property</div>
+                </div>
+                <div class="featured-badge-wrap">
+                    <span class="featured-badge">⭐ Property of the Month</span>
+                    <span class="featured-badge" style="background:rgba(16,185,129,.9);color:#fff">🔑 Keys Ready</span>
+                </div>
+                <div class="featured-bottom-bar">
+                    <div class="featured-stat">
+                        <div class="featured-stat-num">480</div>
+                        <div class="featured-stat-lab">sqm</div>
+                    </div>
+                    <div class="featured-stat">
+                        <div class="featured-stat-num">6</div>
+                        <div class="featured-stat-lab">Bedrooms</div>
+                    </div>
+                    <div class="featured-stat">
+                        <div class="featured-stat-num">4</div>
+                        <div class="featured-stat-lab">Bathrooms</div>
+                    </div>
+                    <div class="featured-stat">
+                        <div class="featured-stat-num">2030</div>
+                        <div class="featured-stat-lab">Built</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="featured-info">
+                <div class="featured-eyebrow">
+                    <span class="featured-type-tag">🏰 Estate</span>
+                    <span class="featured-id">ID: LXE-2024-001</span>
+                </div>
+
+                <h2 class="featured-title">The Grand Nkosi Estate</h2>
+                <div class="featured-loc">📍 Ezulwini Valley, Eswatini</div>
+
+                <p class="featured-desc">
+                    Perched above Ezulwini Valley with panoramic mountain views, this architectural masterpiece
+                    blends traditional African design with contemporary luxury. Private infinity pool, home cinema,
+                    wine cellar, and a 3-car garage — a true statement of prestige.
+                </p>
+
+                <div class="featured-price">E 12 500 000</div>
+                <p class="featured-price-note">Negotiable · Transfer included · Rates-paid property</p>
+
+                <div class="featured-highlights">
+                    <div class="feat-hl">
+                        <div class="feat-hl-icon">🏊</div>
+                        <div>
+                            <div class="feat-hl-label">Pool</div>
+                            <div class="feat-hl-val">Infinity Pool</div>
+                        </div>
+                    </div>
+                    <div class="feat-hl">
+                        <div class="feat-hl-icon">🌳</div>
+                        <div>
+                            <div class="feat-hl-label">Gardens</div>
+                            <div class="feat-hl-val">3 000 sqm</div>
+                        </div>
+                    </div>
+                    <div class="feat-hl">
+                        <div class="feat-hl-icon">🔐</div>
+                        <div>
+                            <div class="feat-hl-label">Security</div>
+                            <div class="feat-hl-val">24/7 Guards</div>
+                        </div>
+                    </div>
+                    <div class="feat-hl">
+                        <div class="feat-hl-icon">⚡</div>
+                        <div>
+                            <div class="feat-hl-label">Energy</div>
+                            <div class="feat-hl-val">Solar + Grid</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="featured-actions">
+                    <button class="btn btn-primary" onclick="openFeaturedModal()">
+                        🎬 Virtual Tour
+                    </button>
+                    <button class="btn btn-outline" onclick="showToast('📞 Agent will call you shortly!', 'success')">
+                        📞 Contact Agent
+                    </button>
+                    <button class="btn btn-ghost" onclick="toggleFeaturedFav(this)">
+                        🤍 Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── MORTGAGE CALCULATOR + LIFESTYLE QUIZ ───────────────────────────────── -->
+<section id="calculator-section" class="section" aria-label="Mortgage calculator and lifestyle quiz">
+    <div class="container">
+        <div class="section-header">
+            <span class="section-eyebrow">Tools</span>
+            <h2 class="section-title">Plan Your Future</h2>
+            <p class="section-desc">Calculate your monthly payments and discover which property style suits your lifestyle.</p>
+        </div>
+
+        <div class="calc-grid">
+            <!-- Mortgage Calculator -->
+            <div class="calc-box" aria-label="Mortgage calculator">
+                <div class="calc-title">
+                    <div class="calc-title-icon" aria-hidden="true">🧮</div>
+                    Mortgage Calculator
+                </div>
+
+                <div class="calc-field">
+                    <div class="calc-label">
+                        <span>Property Price</span>
+                        <span class="calc-label-value" id="calc-price-val">E 2 500 000</span>
+                    </div>
+                    <input type="range" id="calc-price" min="200000" max="15000000" step="100000" value="2500000" aria-label="Property price">
+                </div>
+
+                <div class="calc-field">
+                    <div class="calc-label">
+                        <span>Deposit (20%)</span>
+                        <span class="calc-label-value" id="calc-deposit-val">E 500 000</span>
+                    </div>
+                    <input type="range" id="calc-deposit" min="5" max="50" step="1" value="20" aria-label="Deposit percentage">
+                </div>
+
+                <div class="calc-field">
+                    <div class="calc-label">
+                        <span>Loan Term</span>
+                        <span class="calc-label-value" id="calc-term-val">20 years</span>
+                    </div>
+                    <input type="range" id="calc-term" min="5" max="30" step="1" value="20" aria-label="Loan term in years">
+                </div>
+
+                <div class="calc-field">
+                    <div class="calc-label">
+                        <span>Interest Rate</span>
+                        <span class="calc-label-value" id="calc-rate-val">9.5%</span>
+                    </div>
+                    <input type="range" id="calc-rate" min="5" max="20" step="0.1" value="9.5" aria-label="Annual interest rate">
+                </div>
+
+                <div class="calc-result-box" aria-live="polite" aria-atomic="true">
+                    <div class="calc-result-label">Monthly Payment</div>
+                    <div class="calc-result-value" id="calc-monthly">E 0</div>
+                    <div class="calc-result-sub" id="calc-total-label">Total repayment: E 0</div>
+                </div>
+
+                <div class="calc-breakdown">
+                    <div class="calc-breakdown-row">
+                        <span class="cbd-label">Loan amount</span>
+                        <span class="cbd-val" id="cbd-loan">E 0</span>
+                    </div>
+                    <div class="calc-breakdown-row">
+                        <span class="cbd-label">Total interest</span>
+                        <span class="cbd-val" id="cbd-interest">E 0</span>
+                    </div>
+                    <div class="calc-breakdown-row">
+                        <span class="cbd-label">Affordability tip</span>
+                        <span class="cbd-val" id="cbd-tip">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lifestyle Matcher -->
+            <div class="lifestyle-box" aria-label="Lifestyle property matcher quiz">
+                <div class="calc-title">
+                    <div class="calc-title-icon" aria-hidden="true">✨</div>
+                    Lifestyle Matcher
+                </div>
+
+                <div id="quiz-container">
+                    <!-- Step 1 -->
+                    <div class="quiz-step active" data-step="1">
+                        <div class="quiz-step-label">Step 1 of 4</div>
+                        <div class="quiz-progress"><div class="quiz-progress-bar" style="width:25%"></div></div>
+                        <div class="quiz-question">What matters most to you in a home?</div>
+                        <div class="quiz-options" role="group">
+                            <label class="quiz-option" data-value="space" tabindex="0">
+                                <span class="quiz-option-icon">🌳</span> Space &amp; privacy
+                            </label>
+                            <label class="quiz-option" data-value="urban" tabindex="0">
+                                <span class="quiz-option-icon">🌆</span> City lifestyle &amp; convenience
+                            </label>
+                            <label class="quiz-option" data-value="luxury" tabindex="0">
+                                <span class="quiz-option-icon">💎</span> Luxury finishes &amp; prestige
+                            </label>
+                            <label class="quiz-option" data-value="value" tabindex="0">
+                                <span class="quiz-option-icon">📈</span> Investment &amp; value growth
+                            </label>
+                        </div>
+                        <button class="btn btn-primary btn-sm quiz-next" data-next="2">Next →</button>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="quiz-step" data-step="2">
+                        <div class="quiz-step-label">Step 2 of 4</div>
+                        <div class="quiz-progress"><div class="quiz-progress-bar" style="width:50%"></div></div>
+                        <div class="quiz-question">How do you prefer to spend your weekends?</div>
+                        <div class="quiz-options" role="group">
+                            <label class="quiz-option" data-value="outdoor" tabindex="0">
+                                <span class="quiz-option-icon">🏞</span> Outdoor activities &amp; nature
+                            </label>
+                            <label class="quiz-option" data-value="social" tabindex="0">
+                                <span class="quiz-option-icon">🎉</span> Entertaining guests
+                            </label>
+                            <label class="quiz-option" data-value="relax" tabindex="0">
+                                <span class="quiz-option-icon">🛋</span> Relaxing at home
+                            </label>
+                            <label class="quiz-option" data-value="explore" tabindex="0">
+                                <span class="quiz-option-icon">🚗</span> Exploring the city
+                            </label>
+                        </div>
+                        <div style="display:flex;gap:10px">
+                            <button class="btn btn-ghost btn-sm quiz-back" data-back="1">← Back</button>
+                            <button class="btn btn-primary btn-sm quiz-next" data-next="3">Next →</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div class="quiz-step" data-step="3">
+                        <div class="quiz-step-label">Step 3 of 4</div>
+                        <div class="quiz-progress"><div class="quiz-progress-bar" style="width:75%"></div></div>
+                        <div class="quiz-question">What's your household like?</div>
+                        <div class="quiz-options" role="group">
+                            <label class="quiz-option" data-value="single" tabindex="0">
+                                <span class="quiz-option-icon">👤</span> Solo professional
+                            </label>
+                            <label class="quiz-option" data-value="couple" tabindex="0">
+                                <span class="quiz-option-icon">👫</span> Couple / Partner
+                            </label>
+                            <label class="quiz-option" data-value="family" tabindex="0">
+                                <span class="quiz-option-icon">👨‍👩‍👧‍👦</span> Growing family
+                            </label>
+                            <label class="quiz-option" data-value="extended" tabindex="0">
+                                <span class="quiz-option-icon">🏘</span> Extended / Multi-gen
+                            </label>
+                        </div>
+                        <div style="display:flex;gap:10px">
+                            <button class="btn btn-ghost btn-sm quiz-back" data-back="2">← Back</button>
+                            <button class="btn btn-primary btn-sm quiz-next" data-next="4">Next →</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 4 -->
+                    <div class="quiz-step" data-step="4">
+                        <div class="quiz-step-label">Step 4 of 4</div>
+                        <div class="quiz-progress"><div class="quiz-progress-bar" style="width:100%"></div></div>
+                        <div class="quiz-question">What's your budget range?</div>
+                        <div class="quiz-options" role="group">
+                            <label class="quiz-option" data-value="budget-low" tabindex="0">
+                                <span class="quiz-option-icon">💚</span> Under E 800 000
+                            </label>
+                            <label class="quiz-option" data-value="budget-mid" tabindex="0">
+                                <span class="quiz-option-icon">💛</span> E 800k – E 3M
+                            </label>
+                            <label class="quiz-option" data-value="budget-high" tabindex="0">
+                                <span class="quiz-option-icon">🧡</span> E 3M – E 8M
+                            </label>
+                            <label class="quiz-option" data-value="budget-ultra" tabindex="0">
+                                <span class="quiz-option-icon">💎</span> E 8M+
+                            </label>
+                        </div>
+                        <div style="display:flex;gap:10px">
+                            <button class="btn btn-ghost btn-sm quiz-back" data-back="3">← Back</button>
+                            <button class="btn btn-accent btn-sm" id="btn-quiz-finish">See My Match 🎯</button>
+                        </div>
+                    </div>
+
+                    <!-- Result -->
+                    <div class="quiz-step" data-step="result">
+                        <div class="quiz-result" id="quiz-result-content" aria-live="polite"></div>
+                        <div style="display:flex;gap:10px;justify-content:center;margin-top:20px">
+                            <a href="#listings" class="btn btn-primary btn-sm">View Matches</a>
+                            <button class="btn btn-ghost btn-sm" id="btn-quiz-restart">Retake Quiz</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── NEIGHBORHOOD EXPLORER ──────────────────────────────────────────────── -->
+<section id="neighborhood-section" class="section section-alt" aria-label="Neighborhood explorer">
+    <div class="container">
+        <div class="section-header">
+            <span class="section-eyebrow">Location Intelligence</span>
+            <h2 class="section-title">Explore Neighbourhoods</h2>
+            <p class="section-desc">Before you buy, know the area. Our livability scores give you the full picture.</p>
+        </div>
+
+        <div class="neighborhood-grid">
+            <!-- Map placeholder -->
+            <div class="hood-map-placeholder" aria-label="Interactive neighbourhood map">
+                <div class="map-icon-big" aria-hidden="true">🗺</div>
+                <div class="map-label">Interactive Map — Click pins to explore</div>
+                <div class="map-pins" aria-hidden="true" id="map-pins">
+                    <div class="map-pin" style="top:35%;left:40%" title="Mbabane CBD" data-area="Mbabane"></div>
+                    <div class="map-pin pin-accent" style="top:55%;left:55%" title="Ezulwini Valley" data-area="Ezulwini"></div>
+                    <div class="map-pin pin-red" style="top:25%;left:65%" title="Matsapha Industrial" data-area="Matsapha"></div>
+                    <div class="map-pin" style="top:70%;left:30%" title="Manzini City" data-area="Manzini"></div>
+                    <div class="map-pin pin-accent" style="top:45%;left:75%" title="Lobamba Village" data-area="Lobamba"></div>
+                </div>
+            </div>
+
+            <!-- Scores panel -->
+            <div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px" role="group" aria-label="Select neighbourhood">
+                    <button class="btn btn-primary btn-sm" data-hood="Mbabane" onclick="loadHoodScores(this)">Mbabane</button>
+                    <button class="btn btn-ghost btn-sm" data-hood="Ezulwini" onclick="loadHoodScores(this)">Ezulwini</button>
+                    <button class="btn btn-ghost btn-sm" data-hood="Manzini" onclick="loadHoodScores(this)">Manzini</button>
+                    <button class="btn btn-ghost btn-sm" data-hood="Lobamba" onclick="loadHoodScores(this)">Lobamba</button>
+                    <button class="btn btn-ghost btn-sm" data-hood="Matsapha" onclick="loadHoodScores(this)">Matsapha</button>
+                </div>
+
+                <div id="hood-area-title" style="font-size:1.2em;font-weight:700;margin-bottom:18px;color:var(--gold)">
+                    📍 Mbabane, Eswatini
+                </div>
+
+                <div class="hood-scores" id="hood-scores" aria-label="Neighbourhood livability scores"></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── WHY US ──────────────────────────────────────────────────────────────── -->
+<section id="why-section" class="section" aria-label="Why choose LuxeEstates">
+    <div class="container">
+        <div class="section-header">
+            <span class="section-eyebrow">Why LuxeEstates</span>
+            <h2 class="section-title">A Different Kind of Agency</h2>
+            <p class="section-desc">We don't just sell properties — we match lifestyles, protect investments, and build lasting relationships.</p>
+        </div>
+
+        <div class="why-grid">
+            <div class="why-card">
+                <div class="why-icon">🎬</div>
+                <div class="why-title">Immersive Virtual Tours</div>
+                <div class="why-desc">Step inside every property from your phone or desktop before setting foot inside.</div>
+            </div>
+            <div class="why-card">
+                <div class="why-icon">🤖</div>
+                <div class="why-title">AI Property Matching</div>
+                <div class="why-desc">Our smart algorithm learns your preferences and surfaces properties you'll love.</div>
+            </div>
+            <div class="why-card">
+                <div class="why-icon">📊</div>
+                <div class="why-title">Market Intelligence</div>
+                <div class="why-desc">Live price trends, value forecasts and neighbourhood insights at your fingertips.</div>
+            </div>
+            <div class="why-card">
+                <div class="why-icon">🤝</div>
+                <div class="why-title">End-to-End Support</div>
+                <div class="why-desc">From first viewing to keys-in-hand, our dedicated agents guide every step.</div>
+            </div>
+            <div class="why-card">
+                <div class="why-icon">🔒</div>
+                <div class="why-title">Secure Transactions</div>
+                <div class="why-desc">Bank-grade escrow and transparent contracts ensure your money is always safe.</div>
+            </div>
+            <div class="why-card">
+                <div class="why-icon">💚</div>
+                <div class="why-title">Sustainable Living</div>
+                <div class="why-desc">We flag eco-certified properties with solar, rainwater and low-carbon footprints.</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── TESTIMONIALS ────────────────────────────────────────────────────────── -->
+<section id="testimonials-section" class="section section-alt" aria-label="Client testimonials">
+    <div class="container">
+        <div class="section-header">
+            <span class="section-eyebrow">Stories</span>
+            <h2 class="section-title">What Our Clients Say</h2>
+        </div>
+
+        <div class="testimonials-grid">
+            <div class="testimonial-card">
+                <div class="testimonial-quote">"</div>
+                <div class="testimonial-stars">★★★★★</div>
+                <p class="testimonial-text">LuxeEstates found us our dream home in Ezulwini in under two weeks. The virtual tour saved us three trips and the agent knew the area inside out. Couldn't be happier!</p>
+                <div class="testimonial-author">
+                    <div class="testimonial-avatar">TM</div>
+                    <div>
+                        <div class="testimonial-name">Thabo Mhlongo</div>
+                        <div class="testimonial-role">Bought in Ezulwini Valley · 2024</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="testimonial-card">
+                <div class="testimonial-quote">"</div>
+                <div class="testimonial-stars">★★★★★</div>
+                <p class="testimonial-text">The lifestyle quiz was a game-changer. I answered four questions and it surfaced three apartments I'd never have found myself. Sold within a month of listing too!</p>
+                <div class="testimonial-author">
+                    <div class="testimonial-avatar">SN</div>
+                    <div>
+                        <div class="testimonial-name">Sibongile Nkosi</div>
+                        <div class="testimonial-role">Sold in Mbabane · 2024</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="testimonial-card">
+                <div class="testimonial-quote">"</div>
+                <div class="testimonial-stars">★★★★★</div>
+                <p class="testimonial-text">As a foreign investor, I was nervous about buying in Eswatini. LuxeEstates walked me through every regulation, arranged all viewings remotely, and secured an excellent price.</p>
+                <div class="testimonial-author">
+                    <div class="testimonial-avatar">JK</div>
+                    <div>
+                        <div class="testimonial-name">James Khumalo</div>
+                        <div class="testimonial-role">Invested in Manzini · 2023</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── CONTACT ─────────────────────────────────────────────────────────────── -->
+<section id="contact-section" class="section" aria-label="Contact us">
+    <div class="container">
+        <div class="contact-grid">
+            <div class="contact-info">
+                <span class="section-eyebrow">Get In Touch</span>
+                <h2 class="contact-info-title">Let's Find Your Perfect Home</h2>
+                <p class="contact-info-desc">
+                    Whether you're buying, selling or investing — our team is ready to help. Drop us a message
+                    and we'll get back to you within 24 hours.
+                </p>
+
+                <div class="contact-points">
+                    <div class="contact-point">
+                        <div class="contact-point-icon">📞</div>
+                        <div>
+                            <div class="contact-point-label">Phone</div>
+                            <div class="contact-point-val">+268 2400 0000</div>
+                        </div>
+                    </div>
+                    <div class="contact-point">
+                        <div class="contact-point-icon">📧</div>
+                        <div>
+                            <div class="contact-point-label">Email</div>
+                            <div class="contact-point-val">hello@luxeestates.co.sz</div>
+                        </div>
+                    </div>
+                    <div class="contact-point">
+                        <div class="contact-point-icon">📍</div>
+                        <div>
+                            <div class="contact-point-label">Office</div>
+                            <div class="contact-point-val">Swazi Plaza, Mbabane, Eswatini</div>
+                        </div>
+                    </div>
+                    <div class="contact-point">
+                        <div class="contact-point-icon">🕐</div>
+                        <div>
+                            <div class="contact-point-label">Hours</div>
+                            <div class="contact-point-val">Mon–Sat · 8:00 – 17:00</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="social-row" aria-label="Social media links">
+                    <a href="#" class="social-btn" aria-label="Facebook">f</a>
+                    <a href="#" class="social-btn" aria-label="Instagram">📸</a>
+                    <a href="#" class="social-btn" aria-label="WhatsApp">💬</a>
+                    <a href="#" class="social-btn" aria-label="LinkedIn">in</a>
+                    <a href="#" class="social-btn" aria-label="YouTube">▶</a>
+                </div>
+            </div>
+
+            <div class="contact-form-box" aria-label="Contact form">
+                <div class="form-title">Send Us a Message</div>
+                <form id="contact-form" novalidate>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="cf-fname">First Name *</label>
+                            <input class="form-input" type="text" id="cf-fname" name="fname" placeholder="Your first name" required autocomplete="given-name">
+                        </div>
+                        <div class="form-group">
+                            <label for="cf-lname">Last Name *</label>
+                            <input class="form-input" type="text" id="cf-lname" name="lname" placeholder="Your last name" required autocomplete="family-name">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="cf-email">Email Address *</label>
+                            <input class="form-input" type="email" id="cf-email" name="email" placeholder="you@example.com" required autocomplete="email">
+                        </div>
+                        <div class="form-group">
+                            <label for="cf-phone">Phone Number</label>
+                            <input class="form-input" type="tel" id="cf-phone" name="phone" placeholder="+268 …" autocomplete="tel">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="cf-interest">I'm interested in…</label>
+                        <select class="form-select" id="cf-interest" name="interest">
+                            <option value="">Select an option</option>
+                            <option>Buying a property</option>
+                            <option>Selling my property</option>
+                            <option>Renting a property</option>
+                            <option>Property investment advice</option>
+                            <option>Property valuation</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="cf-message">Message *</label>
+                        <textarea class="form-textarea" id="cf-message" name="message" rows="4" placeholder="Tell us what you're looking for…" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-check">
+                            <input type="checkbox" id="cf-consent" name="consent" required>
+                            I agree to be contacted by LuxeEstates regarding my enquiry.
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">
+                        Send Message ✉️
+                    </button>
+                </form>
+
+                <div class="form-success" id="form-success" role="alert" aria-live="assertive">
+                    <div class="form-success-icon">🎉</div>
+                    <div class="form-success-title">Message Sent!</div>
+                    <p class="form-success-desc">Thank you! Our team will be in touch within 24 hours.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── FOOTER ──────────────────────────────────────────────────────────────── -->
+<footer role="contentinfo">
+    <div class="container">
+        <div class="footer-grid">
+            <div>
+                <div class="footer-brand-logo">
+                    <div class="nav-logo-icon" aria-hidden="true">🏡</div>
+                    <div>
+                        <span class="nav-logo-text">LuxeEstates</span>
+                        <span class="nav-logo-sub">Premium Properties</span>
+                    </div>
+                </div>
+                <p class="footer-brand-desc">
+                    Eswatini's premier property marketplace. Connecting buyers, sellers
+                    and investors with exceptional homes since 2020.
+                </p>
+                <div class="social-row">
+                    <a href="#" class="social-btn" aria-label="Facebook">f</a>
+                    <a href="#" class="social-btn" aria-label="Instagram">📸</a>
+                    <a href="#" class="social-btn" aria-label="WhatsApp">💬</a>
+                </div>
+            </div>
+            <div>
+                <div class="footer-col-title">Browse</div>
+                <ul class="footer-links" role="list">
+                    <li><a href="#listings">All Listings</a></li>
+                    <li><a href="#listings" onclick="filterByType('house')">Houses</a></li>
+                    <li><a href="#listings" onclick="filterByType('apartment')">Apartments</a></li>
+                    <li><a href="#listings" onclick="filterByType('villa')">Villas</a></li>
+                    <li><a href="#featured-section">Featured</a></li>
+                </ul>
+            </div>
+            <div>
+                <div class="footer-col-title">Services</div>
+                <ul class="footer-links" role="list">
+                    <li><a href="#contact-section">Buy Property</a></li>
+                    <li><a href="#contact-section">Sell Property</a></li>
+                    <li><a href="#contact-section">Property Valuation</a></li>
+                    <li><a href="#calculator-section">Mortgage Calculator</a></li>
+                    <li><a href="#neighborhood-section">Area Guides</a></li>
+                </ul>
+            </div>
+            <div>
+                <div class="footer-col-title">Company</div>
+                <ul class="footer-links" role="list">
+                    <li><a href="#why-section">About Us</a></li>
+                    <li><a href="#testimonials-section">Reviews</a></li>
+                    <li><a href="#contact-section">Contact</a></li>
+                    <li><a href="index.html">♠ Kassino Kings</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <span>© 2024 LuxeEstates. All rights reserved.</span>
+            <span>
+                <a href="#">Privacy Policy</a> ·
+                <a href="#">Terms of Service</a> ·
+                <a href="#">Cookie Policy</a>
+            </span>
+        </div>
+    </div>
+</footer>
+
+<!-- ── PROPERTY DETAIL MODAL ──────────────────────────────────────────────── -->
+<div id="prop-modal" class="hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title-text">
+    <div class="modal-box">
+        <button class="modal-close" onclick="closeModal()" aria-label="Close property details">✕</button>
+
+        <div class="modal-gallery" id="modal-gallery">
+            <div class="modal-gallery-img" id="modal-gallery-icon" aria-hidden="true">🏠</div>
+            <button class="modal-gallery-nav modal-gallery-prev" onclick="galleryNav(-1)" aria-label="Previous image">‹</button>
+            <button class="modal-gallery-nav modal-gallery-next" onclick="galleryNav(1)" aria-label="Next image">›</button>
+            <div class="modal-gallery-dots" id="gallery-dots" aria-hidden="true"></div>
+            <div class="modal-gallery-badge" id="modal-gallery-badge">Featured</div>
+        </div>
+
+        <div class="modal-content">
+            <div class="modal-tabs" role="tablist" aria-label="Property detail tabs">
+                <button class="modal-tab active" data-panel="overview" role="tab">Overview</button>
+                <button class="modal-tab" data-panel="features" role="tab">Features</button>
+                <button class="modal-tab" data-panel="floorplan" role="tab">Floor Plan</button>
+                <button class="modal-tab" data-panel="invest" role="tab">Investment</button>
+            </div>
+
+            <!-- Overview -->
+            <div class="modal-tab-panel active" id="panel-overview">
+                <div class="modal-header">
+                    <div>
+                        <div class="modal-title" id="modal-title-text">Property Name</div>
+                        <div class="modal-loc" id="modal-loc">📍 Location</div>
+                    </div>
+                    <div>
+                        <div class="modal-price" id="modal-price">E 0</div>
+                        <div class="modal-price-note" id="modal-price-note">Negotiable</div>
+                    </div>
+                </div>
+
+                <div class="modal-feats-grid">
+                    <div class="modal-feat">
+                        <div class="modal-feat-icon">🛏</div>
+                        <div class="modal-feat-val" id="modal-beds">0</div>
+                        <div class="modal-feat-lbl">Bedrooms</div>
+                    </div>
+                    <div class="modal-feat">
+                        <div class="modal-feat-icon">🚿</div>
+                        <div class="modal-feat-val" id="modal-baths">0</div>
+                        <div class="modal-feat-lbl">Bathrooms</div>
+                    </div>
+                    <div class="modal-feat">
+                        <div class="modal-feat-icon">📐</div>
+                        <div class="modal-feat-val" id="modal-size">0</div>
+                        <div class="modal-feat-lbl">sqm</div>
+                    </div>
+                    <div class="modal-feat">
+                        <div class="modal-feat-icon">🚗</div>
+                        <div class="modal-feat-val" id="modal-garage">0</div>
+                        <div class="modal-feat-lbl">Garage</div>
+                    </div>
+                </div>
+
+                <p class="modal-desc" id="modal-desc">Description goes here.</p>
+
+                <div style="display:flex;gap:12px;flex-wrap:wrap">
+                    <button class="btn btn-primary" onclick="showToast('📞 Agent will call you!', 'success')">📞 Contact Agent</button>
+                    <button class="btn btn-outline" onclick="showToast('📅 Viewing scheduled!', 'success')">📅 Book Viewing</button>
+                    <button class="btn btn-ghost" id="modal-fav-btn" onclick="toggleModalFav()">🤍 Save</button>
+                </div>
+            </div>
+
+            <!-- Features -->
+            <div class="modal-tab-panel" id="panel-features">
+                <h3 style="margin-bottom:16px;font-size:1em;color:var(--text-secondary);font-weight:600">Property Amenities</h3>
+                <div class="modal-amenities-grid" id="modal-amenities"></div>
+            </div>
+
+            <!-- Floor Plan -->
+            <div class="modal-tab-panel" id="panel-floorplan">
+                <div class="floorplan-wrap">
+                    <div class="floorplan-icon" aria-hidden="true">📐</div>
+                    <div class="floorplan-label">Interactive Floor Plan</div>
+                    <div class="floorplan-grid" id="floorplan-grid"></div>
+                </div>
+            </div>
+
+            <!-- Investment -->
+            <div class="modal-tab-panel" id="panel-invest">
+                <h3 style="margin-bottom:16px;font-size:1em;color:var(--text-secondary);font-weight:600">Investment Analysis</h3>
+                <div id="modal-invest-content"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ── TOAST ───────────────────────────────────────────────────────────────── -->
+<div id="toast" role="status" aria-live="polite" aria-atomic="true">
+    <span class="toast-icon" id="toast-icon" aria-hidden="true">✅</span>
+    <span class="toast-msg" id="toast-msg"></span>
+</div>
+
+<!-- ── BACK TO TOP ────────────────────────────────────────────────────────── -->
+<button id="back-to-top" onclick="scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑</button>
+
+<script src="js/properties.js"></script>
+</body>
+</html>
