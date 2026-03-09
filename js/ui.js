@@ -49,6 +49,7 @@ function renderGame() {
     renderScorePanel();
     updateDeckInfo();
     updateButtonStates();
+    renderMoveLog();
 }
 
 // ── Hands ─────────────────────────────────────────────────────────────────────
@@ -278,8 +279,11 @@ function renderScorePanel() {
 
     const pCapEl = el('player-round-info');
     const aCapEl = el('ai-round-info');
-    if (pCapEl) pCapEl.textContent = `Captured: ${GameState.playerCaptures.length}`;
-    if (aCapEl) aCapEl.textContent = `Captured: ${GameState.aiCaptures.length}`;
+    // Show total pile size (carries across rounds) and this round's additions
+    const pRound = GameState.playerCaptures.length - GameState.roundPlayerCaptureStart;
+    const aRound = GameState.aiCaptures.length - GameState.roundAICaptureStart;
+    if (pCapEl) pCapEl.textContent = `Pile: ${GameState.playerCaptures.length} (R${GameState.roundNumber}: +${pRound})`;
+    if (aCapEl) aCapEl.textContent = `Pile: ${GameState.aiCaptures.length} (R${GameState.roundNumber}: +${aRound})`;
 }
 
 function updateDeckInfo() {
@@ -288,6 +292,24 @@ function updateDeckInfo() {
     if (countEl) countEl.textContent = GameState.deck.length;
     const backEl = document.querySelector('.deck-card-back');
     if (backEl) backEl.style.opacity = GameState.deck.length > 0 ? '1' : '0.15';
+}
+
+// ── Move log ──────────────────────────────────────────────────────────────────
+function renderMoveLog() {
+    const logEl = el('move-log');
+    if (!logEl) return;
+    const entries = GameState.moveLog;
+    if (entries.length === 0) {
+        logEl.innerHTML = '<span class="log-empty">No moves yet.</span>';
+        return;
+    }
+    // Show newest first; limit to last 30 entries
+    const shown = entries.slice(-30).reverse();
+    logEl.innerHTML = shown.map(e => {
+        const cls = e.actor === 'player' ? 'log-player' : 'log-ai';
+        const who = e.actor === 'player' ? 'You' : 'AI';
+        return `<div class="log-entry ${cls}"><span class="log-round">R${e.round}</span><span class="log-actor">${who}</span>${e.description}</div>`;
+    }).join('');
 }
 
 // ── Button states ─────────────────────────────────────────────────────────────
@@ -595,9 +617,10 @@ function showRoundScoresUI(scores) {
     const overlay = el('score-overlay');
     el('overlay-title').textContent = `Round ${GameState.roundNumber - 1} Complete!`;
 
+    // scores.player/ai.cardCount already reflects only this round's captures (via slice in calculateRoundScores)
     el('score-breakdown').innerHTML =
         scoreTableHeader() +
-        makeScoreRow(`Most cards (${scores.player.cardCount} vs ${scores.ai.cardCount}) — 2pts, tie=1`,
+        makeScoreRow(`Cards this round (${scores.player.cardCount} vs ${scores.ai.cardCount}) — 2pts, tie=1`,
             scores.player.mostCards, scores.ai.mostCards) +
         makeScoreRow(`5+ Spades (${scores.player.spadeCount} vs ${scores.ai.spadeCount})`,
             scores.player.fiveSpades, scores.ai.fiveSpades) +
@@ -605,7 +628,8 @@ function showRoundScoresUI(scores) {
         makeScoreRow('10♦ Big Casino',   scores.player.bigCasino,    scores.ai.bigCasino) +
         makeScoreRow('Aces',             scores.player.aces,         scores.ai.aces) +
         makeTotalRow('Round Total',      scores.player.total,        scores.ai.total) +
-        makeTotalRow('Game Score',       GameState.playerScore,      GameState.aiScore);
+        makeTotalRow('Game Score',       GameState.playerScore,      GameState.aiScore) +
+        `<div class="score-row"><span class="sr-label sr-note">Your pile carries into Round 2 — ${GameState.playerCaptures.length} cards total so far.</span></div>`;
 
     overlay.classList.remove('hidden');
 }
@@ -636,11 +660,13 @@ function handleNextRound() {
     startRound();
     resetSelection();
     renderGame();
+    const pTotal = GameState.playerCaptures.length;
+    const aTotal = GameState.aiCaptures.length;
     if (GameState.currentTurn === 'ai') {
-        updateStatus('Round 2 — AI goes first (loser starts). No center cards — AI will play first.');
+        updateStatus(`Round 2 — AI goes first. Your pile: ${pTotal} cards, AI pile: ${aTotal} cards.`);
         setTimeout(doAITurn, 1300);
     } else {
-        updateStatus('Round 2! No center cards — select a card to play it or start building.');
+        updateStatus(`Round 2! Your pile: ${pTotal} cards, AI pile: ${aTotal} cards. Select a card to continue.`);
     }
 }
 

@@ -517,6 +517,7 @@ html, body {
 .sr-p-head, .sr-a-head { min-width: 32px; text-align: right; color: #999; font-size: .85em; }
 .sr-p-head { color: #7af; }
 .sr-a-head { color: #f88; }
+.sr-note   { color: #888; font-size: .85em; }
 
 /* game-over */
 .final-scores {
@@ -551,6 +552,53 @@ html, body {
     text-align: center;
     margin-top: 6px;
 }
+
+/* ── Move Log ────────────────────────────────────────────────────────────────*/
+.move-log {
+    background: rgba(0,0,0,.38);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 6px;
+    padding: 4px 8px;
+    max-height: 68px;
+    overflow-y: auto;
+    font-size: .72em;
+    line-height: 1.5;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,.2) transparent;
+}
+
+.log-empty {
+    color: rgba(255,255,255,.3);
+    font-style: italic;
+}
+
+.log-entry {
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+    padding: 1px 0;
+    border-bottom: 1px solid rgba(255,255,255,.05);
+    color: #ccc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.log-entry:last-child { border-bottom: none; }
+
+.log-round {
+    flex-shrink: 0;
+    color: rgba(255,215,0,.6);
+    font-size: .85em;
+    min-width: 18px;
+}
+
+.log-actor {
+    flex-shrink: 0;
+    font-weight: bold;
+    min-width: 20px;
+}
+.log-player .log-actor { color: #7af; }
+.log-ai     .log-actor { color: #f88; }
 
 /* ── Animations ──────────────────────────────────────────────────────────────*/
 @keyframes dealIn {

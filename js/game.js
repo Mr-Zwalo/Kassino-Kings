@@ -14,29 +14,40 @@ const GameState = {
     currentTurn:     'player',
     gamePhase:       'playing', // 'playing' | 'roundOver' | 'gameOver'
     roundNumber:     1,         // 1 or 2; game ends after round 2
-    nextFirstPlayer: 'player'   // who goes first in the next round
+    nextFirstPlayer: 'player',  // who goes first in the next round
+    // Per-round capture slice indices (capture piles persist across rounds)
+    roundPlayerCaptureStart: 0,
+    roundAICaptureStart:     0,
+    moveLog:         []    // [{round, actor, description}]
 };
 
 // ── Initialization ────────────────────────────────────────────────────────────
 // The 40-card deck is created ONCE per game and split across the two rounds.
 function initGame() {
-    GameState.playerScore     = 0;
-    GameState.aiScore         = 0;
-    GameState.roundNumber     = 1;
-    GameState.gamePhase       = 'playing';
-    GameState.nextFirstPlayer = 'player';
-    GameState.deck            = shuffleDeck(createDeck()); // one deck for the whole game
+    GameState.playerScore            = 0;
+    GameState.aiScore                = 0;
+    GameState.roundNumber            = 1;
+    GameState.gamePhase              = 'playing';
+    GameState.nextFirstPlayer        = 'player';
+    GameState.playerCaptures         = [];   // reset only on new game
+    GameState.aiCaptures             = [];
+    GameState.roundPlayerCaptureStart = 0;
+    GameState.roundAICaptureStart     = 0;
+    GameState.moveLog                = [];
+    GameState.deck                   = shuffleDeck(createDeck()); // one deck for the whole game
     startRound();
 }
 
 // Deal 10 cards each from the shared deck and reset per-round state.
 // Called twice per game (round 1 and round 2).
+// Capture piles are NOT reset between rounds — they persist for the whole game.
 function startRound() {
     GameState.centerCards    = [];
     GameState.playerHand     = [];
     GameState.aiHand         = [];
-    GameState.playerCaptures = [];
-    GameState.aiCaptures     = [];
+    // Record pile sizes at round start so scoring can identify this round's captures
+    GameState.roundPlayerCaptureStart = GameState.playerCaptures.length;
+    GameState.roundAICaptureStart     = GameState.aiCaptures.length;
     GameState.lastCapture    = null;
     GameState.currentTurn    = GameState.nextFirstPlayer;
 
@@ -231,6 +242,13 @@ function executeCapture(handCard, selectedCenterItems, isPlayer) {
     GameState.lastCapture = who;
 
     const isTableClear = GameState.centerCards.length === 0;
+
+    // Log the move
+    const shown    = sortedCards.slice(0, 3).map(cardToString).join(', ');
+    const overflow = sortedCards.length > 3 ? ` +${sortedCards.length - 3} more` : '';
+    const sweep    = isTableClear ? ' (table cleared!)' : '';
+    addMoveLogEntry(who, `captured ${sortedCards.length} card${sortedCards.length !== 1 ? 's' : ''}: ${shown}${overflow}${sweep}`);
+
     return { isTableClear, capturedCards: sortedCards };
 }
 
@@ -284,6 +302,10 @@ function executeBuild(handCard, selectedCenterItems, isPlayer) {
     };
     GameState.centerCards.push(build);
 
+    // Log the move
+    const action = isSteal ? `stole opponent's build →` : 'built to';
+    addMoveLogEntry(who, `${action} ${target} using ${cardToString(handCard)}`);
+
     return { targetValue: target, build };
 }
 
@@ -314,6 +336,8 @@ function executeDrift(handCard, isPlayer) {
     GameState.centerCards = GameState.centerCards.filter(item => item !== myBuild);
     GameState.centerCards.push(drifted);
 
+    addMoveLogEntry(who, `drifted build (${cardToString(handCard)}) → open pile`);
+
     return { success: true, drifted };
 }
 
@@ -327,6 +351,8 @@ function executeTrail(handCard, isPlayer) {
         return { error: "AI has a build in round 1." };
     }
 
+    const who = isPlayer ? 'player' : 'ai';
+
     if (isPlayer) {
         GameState.playerHand = GameState.playerHand.filter(c => c.id !== handCard.id);
     } else {
@@ -334,6 +360,7 @@ function executeTrail(handCard, isPlayer) {
     }
 
     GameState.centerCards.push(handCard);
+    addMoveLogEntry(who, `played ${cardToString(handCard)} to center`);
     return { success: true };
 }
 
@@ -368,8 +395,9 @@ function endRoundCleanup() {
 
 // ── Scoring (South African Casino) ───────────────────────────────────────────
 function calculateRoundScores() {
-    const p = GameState.playerCaptures;
-    const a = GameState.aiCaptures;
+    // Only score the cards captured THIS round (piles persist across rounds)
+    const p = GameState.playerCaptures.slice(GameState.roundPlayerCaptureStart);
+    const a = GameState.aiCaptures.slice(GameState.roundAICaptureStart);
 
     const pSpades = p.filter(c => c.suit === 'spades').length;
     const aSpades = a.filter(c => c.suit === 'spades').length;
@@ -452,4 +480,9 @@ function checkGameOver() {
 
 function nextTurn() {
     GameState.currentTurn = GameState.currentTurn === 'player' ? 'ai' : 'player';
+}
+
+// ── Move log ──────────────────────────────────────────────────────────────────
+function addMoveLogEntry(actor, description) {
+    GameState.moveLog.push({ round: GameState.roundNumber, actor, description });
 }
