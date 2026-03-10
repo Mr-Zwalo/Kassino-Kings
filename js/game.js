@@ -115,11 +115,28 @@ function isValidCapture(handCard, selectedItems) {
 }
 
 // Return all valid capture combinations for handCard (includes opponent pile top).
+// Pile-top activation rule (capture): a subset that includes the pile top is only
+// valid when it also contains at least one regular floor card whose value equals the
+// pile top's value — you cannot "pick up" the pile top card in isolation.
 function getValidCaptureOptions(handCard, isPlayer = true) {
-    const center   = GameState.centerCards;
-    const oppTop   = getOpponentTopPileItem(isPlayer);
+    const center     = GameState.centerCards;
+    const oppTop     = getOpponentTopPileItem(isPlayer);
     const capturable = oppTop ? [...center, oppTop] : [...center];
-    return findSubsetsWithSum(capturable, handCard.value);
+    const subsets    = findSubsetsWithSum(capturable, handCard.value);
+
+    if (!oppTop) return subsets;
+
+    const pileTopValue = oppTop.card.value;
+    return subsets.filter(subset => {
+        if (!subset.some(i => i.type === 'pileTopCard')) return true; // no pile top → always OK
+        // Pile top is included: require at least one matching regular floor card in the same subset
+        return subset.some(
+            i => i.type !== 'pileTopCard' &&
+                 i.type !== 'build'       &&
+                 i.type !== 'drifted'     &&
+                 getItemValue(i) === pileTopValue
+        );
+    });
 }
 
 // ── Build validation ──────────────────────────────────────────────────────────
@@ -136,16 +153,11 @@ function isValidBuild(handCard, selectedCenterItems, hand) {
     if (selectedCenterItems.some(item => item.type === 'pileTopCard' && item.pileOwner === who))
         return false;
 
-    // Pile top rule: you may include the opponent's pile top in a build only when:
-    //  (a) it is the only center material (no other center cards selected alongside it), OR
-    //  (b) every other selected center item has the exact same value as the pile top card.
+    // Pile top activation rule (build): the opponent's pile top may only be included
+    // in a build when the selection also contains an existing center build being extended.
+    // (You cannot start a brand-new build using only the pile top.)
     if (selectedCenterItems.some(item => item.type === 'pileTopCard')) {
-        const pileTop      = selectedCenterItems.find(i => i.type === 'pileTopCard');
-        const pileTopValue = pileTop.card.value;
-        const otherItems   = selectedCenterItems.filter(i => i.type !== 'pileTopCard');
-        if (otherItems.length > 0 && !otherItems.every(i => getItemValue(i) === pileTopValue)) {
-            return false;
-        }
+        if (!selectedCenterItems.some(item => item.type === 'build')) return false;
     }
 
     // Cannot include a drifted pile in a build

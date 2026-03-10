@@ -3,15 +3,12 @@
 const MIN_BUILD_TARGET_VALUE = 5; // SA deck max = 10; builds below 5 are rarely strategic
 
 // ── Pile-top build rule ───────────────────────────────────────────────────────
-// A subset used for building may include the opponent's pile top only when:
-//   (a) it is the sole center material in the subset (pile top alone), OR
-//   (b) every other item in the subset has the exact same value as the pile top.
+// A subset used for building may include the opponent's pile top only when
+// the subset also contains an existing center build being extended.
+// (Starting a brand-new build from the pile top alone is not allowed.)
 function isPileTopValidInSubset(subset) {
     if (!subset.some(i => i.type === 'pileTopCard')) return true; // no pile top → always OK
-    const pileTop      = subset.find(i => i.type === 'pileTopCard');
-    const pileTopValue = pileTop.card.value;
-    const otherItems   = subset.filter(i => i.type !== 'pileTopCard');
-    return otherItems.length === 0 || otherItems.every(i => getItemValue(i) === pileTopValue);
+    return subset.some(i => i.type === 'build');
 }
 
 // ── AI entry point ────────────────────────────────────────────────────────────
