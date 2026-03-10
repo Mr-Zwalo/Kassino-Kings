@@ -53,6 +53,18 @@ html, body {
     letter-spacing: 1px;
 }
 
+#properties-link {
+    font-size: .78em;
+    color: rgba(255,215,0,.7);
+    text-decoration: none;
+    padding: 4px 10px;
+    border: 1px solid rgba(255,215,0,.2);
+    border-radius: 6px;
+    transition: color .2s, border-color .2s;
+    white-space: nowrap;
+}
+#properties-link:hover { color: var(--gold); border-color: var(--gold); }
+
 #score-panel {
     display: flex;
     align-items: center;
