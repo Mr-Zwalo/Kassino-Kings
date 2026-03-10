@@ -551,8 +551,22 @@ function doAITurn() {
         if (!move && GameState.aiHand.length > 0) {
             // Safety fallback: force play first card (should rarely trigger)
             const trailCard = GameState.aiHand[0];
-            executeTrail(trailCard, false);
-            updateStatus(`AI played ${cardToString(trailCard)} to the center.`);
+            const result = executeTrail(trailCard, false);
+            if (result.error) {
+                // Trail blocked (AI has active build in round 1) — try drift as last resort
+                const myBuild = GameState.centerCards.find(item => item.type === 'build' && item.owner === 'ai');
+                if (myBuild) {
+                    const driftCard = GameState.aiHand.find(c => c.value === myBuild.targetValue);
+                    if (driftCard) {
+                        const driftResult = executeDrift(driftCard, false);
+                        if (driftResult.success) {
+                            updateStatus(`AI drifted its build (value ${driftCard.value}) — now an open pile!`);
+                        }
+                    }
+                }
+            } else {
+                updateStatus(`AI played ${cardToString(trailCard)} to the center.`);
+            }
         } else if (move) {
             applyAIMove(move);
         }
@@ -595,8 +609,10 @@ function applyAIMove(move) {
             updateStatus(`AI drifted its build (value ${move.handCard.value}) — now an open pile!`);
         }
     } else if (move.type === 'trail') {
-        executeTrail(move.handCard, false);
-        updateStatus(`AI played ${cardToString(move.handCard)} to the center.`);
+        const result = executeTrail(move.handCard, false);
+        if (!result.error) {
+            updateStatus(`AI played ${cardToString(move.handCard)} to the center.`);
+        }
     }
 }
 

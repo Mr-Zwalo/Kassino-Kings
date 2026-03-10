@@ -219,7 +219,15 @@ function executeCapture(handCard, selectedCenterItems, isPlayer) {
         if (item.type === 'pileTopCard') {
             const pile = item.pileOwner === 'player' ? GameState.playerCaptures : GameState.aiCaptures;
             const idx  = pile.length - 1;
-            if (idx >= 0 && pile[idx].id === item.card.id) pile.splice(idx, 1);
+            if (idx >= 0 && pile[idx].id === item.card.id) {
+                pile.splice(idx, 1);
+                // If the removed card was in the round-1 section, keep the offset in sync
+                if (item.pileOwner === 'player') {
+                    if (idx < GameState.roundPlayerCaptureStart) GameState.roundPlayerCaptureStart--;
+                } else {
+                    if (idx < GameState.roundAICaptureStart) GameState.roundAICaptureStart--;
+                }
+            }
         }
     }
 
@@ -280,7 +288,15 @@ function executeBuild(handCard, selectedCenterItems, isPlayer) {
         if (item.type === 'pileTopCard') {
             const pile = item.pileOwner === 'player' ? GameState.playerCaptures : GameState.aiCaptures;
             const idx  = pile.length - 1;
-            if (idx >= 0 && pile[idx].id === item.card.id) pile.splice(idx, 1);
+            if (idx >= 0 && pile[idx].id === item.card.id) {
+                pile.splice(idx, 1);
+                // If the removed card was in the round-1 section, keep the offset in sync
+                if (item.pileOwner === 'player') {
+                    if (idx < GameState.roundPlayerCaptureStart) GameState.roundPlayerCaptureStart--;
+                } else {
+                    if (idx < GameState.roundAICaptureStart) GameState.roundAICaptureStart--;
+                }
+            }
         }
     }
 
