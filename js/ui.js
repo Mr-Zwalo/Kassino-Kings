@@ -3,15 +3,16 @@
 // ── UI State ──────────────────────────────────────────────────────────────────
 let selectedHandCard      = null;
 let selectedCenterItems   = [];  // items selected from the center table
-let includeOpponentPile   = false; // whether AI's pile top card is selected
+let includeOpponentPile   = false; // whether opponent's pile top card is selected
 let isAnimating           = false;
+let turnPhase             = 'selecting'; // 'selecting' | 'augmenting'
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     initGame();
     renderGame();
-    updateStatus('Welcome to Kassino Kings! No cards on the table — you must drift your first card.');
+    updateStatus('Welcome to Kassino Kings! Round 1 — select a card to play it or start building.');
 });
 
 function el(id) { return document.getElementById(id); }
@@ -19,13 +20,17 @@ function el(id) { return document.getElementById(id); }
 function setupEventListeners() {
     el('btn-capture').addEventListener('click', handleCapture);
     el('btn-build').addEventListener('click', handleBuild);
-    el('btn-trail').addEventListener('click', handleTrail);
+    el('btn-drift').addEventListener('click', handleDrift);
+    el('btn-play-card').addEventListener('click', handlePlayCard);
+    el('btn-augment').addEventListener('click', handleAugment);
+    el('btn-end-turn').addEventListener('click', handleEndTurn);
     el('btn-new-game').addEventListener('click', () => {
         if (confirm('Start a brand-new game? Current scores will be lost.')) {
             initGame();
+            turnPhase = 'selecting';
             resetSelection();
             renderGame();
-            updateStatus('New game! Select a card from your hand to start.');
+            updateStatus('New game! No cards on the table — you must play a card first.');
         }
     });
     el('btn-next-round').addEventListener('click', handleNextRound);
@@ -48,6 +53,7 @@ function renderGame() {
     renderScorePanel();
     updateDeckInfo();
     updateButtonStates();
+    renderMoveLog();
 }
 
 // ── Hands ─────────────────────────────────────────────────────────────────────
@@ -72,8 +78,23 @@ function renderPlayerHand() {
         if (selectedHandCard && selectedHandCard.id === card.id) {
             cardEl.classList.add('selected');
         }
-        if (GameState.currentTurn === 'player' && !isAnimating) {
+        // Hand cards are only interactive in the 'selecting' phase
+        if (GameState.currentTurn === 'player' && !isAnimating && turnPhase === 'selecting') {
+            // Click to select
             cardEl.addEventListener('click', () => handleHandCardClick(card));
+
+            // Drag to select (starts drag-and-drop selection)
+            cardEl.draggable = true;
+            cardEl.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', card.id);
+                e.dataTransfer.effectAllowed = 'move';
+                // Defer style change so the drag image is captured first
+                setTimeout(() => cardEl.classList.add('dragging'), 0);
+                handleHandCardClick(card);
+            });
+            cardEl.addEventListener('dragend', () => {
+                cardEl.classList.remove('dragging');
+            });
         }
         container.appendChild(cardEl);
     }
@@ -83,14 +104,62 @@ function renderPlayerHand() {
 function renderCenter() {
     const container = el('center-cards');
     container.innerHTML = '';
+
+    // Background drop zone: dropping hand card here clears center selection
+    if (GameState.currentTurn === 'player' && !isAnimating) {
+        container.addEventListener('dragover', (e) => {
+            if (selectedHandCard) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+        });
+        container.addEventListener('drop', (e) => {
+            // Only handle drops directly on the container (not on child items)
+            if (e.target === container && selectedHandCard) {
+                e.preventDefault();
+                selectedCenterItems = [];
+                includeOpponentPile = false;
+                renderGame();
+                updateButtonStates();
+                updateActionHint();
+            }
+        });
+    }
+
     for (const item of GameState.centerCards) {
-        const itemEl = item.type === 'build' ? buildBuildEl(item) : buildCardEl(item);
+        let itemEl;
+        if (item.type === 'build') {
+            itemEl = buildBuildEl(item);
+        } else if (item.type === 'drifted') {
+            itemEl = buildDriftedEl(item);
+        } else {
+            itemEl = buildCardEl(item);
+        }
 
         if (selectedCenterItems.some(s => s === item)) {
             itemEl.classList.add('center-selected');
         }
         if (GameState.currentTurn === 'player' && !isAnimating) {
+            // Click to toggle selection (works in both phases)
             itemEl.addEventListener('click', () => handleCenterItemClick(item));
+
+            // Drag-and-drop: drop a hand card onto a center item to add both to selection
+            itemEl.addEventListener('dragover', (e) => {
+                if (selectedHandCard) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    itemEl.classList.add('drop-target');
+                }
+            });
+            itemEl.addEventListener('dragleave', () => itemEl.classList.remove('drop-target'));
+            itemEl.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation(); // prevent container handler
+                itemEl.classList.remove('drop-target');
+                if (selectedHandCard) {
+                    toggleCenterItem(item);
+                    renderGame();
+                    updateButtonStates();
+                    updateActionHint();
+                }
+            });
         }
         container.appendChild(itemEl);
     }
@@ -136,16 +205,42 @@ function renderAIPile() {
             cardEl.classList.add('center-selected');
         }
 
-        // Clickable when it's the player's turn and a hand card is selected
+        // Clickable/draggable for building and augmentation (not for direct capture)
         if (GameState.currentTurn === 'player' && !isAnimating) {
             cardEl.classList.add('pile-card-clickable');
             cardEl.addEventListener('click', handleAIPileTopClick);
+
+            // Drag: allow hand card to be dropped on AI pile top to include it
+            cardEl.addEventListener('dragover', (e) => {
+                if (selectedHandCard || turnPhase === 'augmenting') {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                }
+            });
+            cardEl.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (selectedHandCard || turnPhase === 'augmenting') {
+                    includeOpponentPile = !includeOpponentPile;
+                    renderGame();
+                    updateButtonStates();
+                    updateActionHint();
+                }
+            });
         }
         topArea.appendChild(cardEl);
 
-        // Show hint when a hand card is selected
+        // Show hint when a hand card is selected or in augmenting phase
         if (hintEl) {
-            hintEl.textContent = selectedHandCard ? '← click to include' : '';
+            if (selectedHandCard || turnPhase === 'augmenting') {
+                if (turnPhase === 'augmenting') {
+                    hintEl.textContent = '← click/drag for augment';
+                } else {
+                    const pileTopActive = isPileTopActivatedFor(topCard.value);
+                    hintEl.textContent = pileTopActive ? '← click/drag for build' : `← needs ${topCard.value} on table`;
+                }
+            } else {
+                hintEl.textContent = '';
+            }
         }
     } else {
         topArea.appendChild(makePileEmptyEl());
@@ -183,8 +278,6 @@ function buildBuildEl(build) {
 
     const ownerText = build.owner === 'player' ? 'Yours' : "AI's";
     const ownerClass = build.owner === 'player' ? 'owner-player' : 'owner-ai';
-
-    // Stack up to 4 cards visually
     const stack = document.createElement('div');
     stack.className = 'build-stack';
     const shown = build.cards.slice(0, Math.min(build.cards.length, 4));
@@ -206,6 +299,12 @@ function buildBuildEl(build) {
     const ownerEl = document.createElement('div');
     ownerEl.className = `build-owner-label ${ownerClass}`;
     ownerEl.textContent = ownerText;
+    if (build.augmented) {
+        const aug = document.createElement('span');
+        aug.className = 'build-augmented-badge';
+        aug.textContent = ' ★aug';
+        ownerEl.appendChild(aug);
+    }
 
     wrapper.appendChild(label);
     wrapper.appendChild(stack);
@@ -217,15 +316,56 @@ function buildBuildEl(build) {
     return wrapper;
 }
 
-// ── Score panel ───────────────────────────────────────────────────────────────
+// ── Drifted pile element factory ──────────────────────────────────────────────
+// A drifted pile is an open pile anyone can capture with the matching card value.
+function buildDriftedEl(drifted) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'build-wrapper drifted-wrapper';
+    wrapper.dataset.driftedId = drifted.id;
+
+    const stack = document.createElement('div');
+    stack.className = 'build-stack';
+    const shown = drifted.cards.slice(0, Math.min(drifted.cards.length, 4));
+    shown.forEach((card, idx) => {
+        const cardEl = buildCardEl(card);
+        cardEl.style.left = `${idx * 18}px`;
+        cardEl.style.position = 'absolute';
+        cardEl.style.top = `${idx * -3}px`;
+        cardEl.style.zIndex = idx;
+        stack.appendChild(cardEl);
+    });
+    stack.style.width  = `${65 + (shown.length - 1) * 18}px`;
+    stack.style.height = '90px';
+
+    const label = document.createElement('div');
+    label.className = 'build-target-label drifted-label';
+    label.textContent = `⟳ ${drifted.value}`;
+
+    const noteEl = document.createElement('div');
+    noteEl.className = 'build-owner-label';
+    noteEl.textContent = 'Open pile';
+
+    wrapper.appendChild(label);
+    wrapper.appendChild(stack);
+    wrapper.appendChild(noteEl);
+
+    if (selectedCenterItems.some(s => s === drifted)) {
+        wrapper.classList.add('center-selected');
+    }
+    return wrapper;
+}
+
 function renderScorePanel() {
     el('player-game-score').textContent = GameState.playerScore;
     el('ai-game-score').textContent     = GameState.aiScore;
 
     const pCapEl = el('player-round-info');
     const aCapEl = el('ai-round-info');
-    if (pCapEl) pCapEl.textContent = `Captured: ${GameState.playerCaptures.length}`;
-    if (aCapEl) aCapEl.textContent = `Captured: ${GameState.aiCaptures.length}`;
+    // Show total pile size (carries across rounds) and this round's additions
+    const pRound = GameState.playerCaptures.length - GameState.roundPlayerCaptureStart;
+    const aRound = GameState.aiCaptures.length - GameState.roundAICaptureStart;
+    if (pCapEl) pCapEl.textContent = `Pile: ${GameState.playerCaptures.length} (R${GameState.roundNumber}: +${pRound})`;
+    if (aCapEl) aCapEl.textContent = `Pile: ${GameState.aiCaptures.length} (R${GameState.roundNumber}: +${aRound})`;
 }
 
 function updateDeckInfo() {
@@ -236,12 +376,51 @@ function updateDeckInfo() {
     if (backEl) backEl.style.opacity = GameState.deck.length > 0 ? '1' : '0.15';
 }
 
+// ── Move log ──────────────────────────────────────────────────────────────────
+function renderMoveLog() {
+    const logEl = el('move-log');
+    if (!logEl) return;
+    const entries = GameState.moveLog;
+    if (entries.length === 0) {
+        logEl.innerHTML = '<span class="log-empty">No moves yet.</span>';
+        return;
+    }
+    // Show newest first; limit to last 30 entries
+    const shown = entries.slice(-30).reverse();
+    logEl.innerHTML = shown.map(e => {
+        const cls = e.actor === 'player' ? 'log-player' : 'log-ai';
+        const who = e.actor === 'player' ? 'You' : 'AI';
+        return `<div class="log-entry ${cls}"><span class="log-round">R${e.round}</span><span class="log-actor">${who}</span>${e.description}</div>`;
+    }).join('');
+}
+
 // ── Button states ─────────────────────────────────────────────────────────────
 function updateButtonStates() {
     const isPlayerTurn = GameState.currentTurn === 'player' && !isAnimating;
-    const hasHand      = selectedHandCard !== null;
-    const fullSel      = buildFullSelection();
-    const hasCenter    = fullSel.length > 0;
+
+    // ── Augmenting phase: only Augment and End Turn are relevant ──────────────
+    if (turnPhase === 'augmenting') {
+        const fullSel = buildFullSelection();
+        const augmentOk = isPlayerTurn && fullSel.length > 0 && isValidAugment(fullSel, true);
+
+        el('btn-capture').disabled   = true;
+        el('btn-build').disabled     = true;
+        el('btn-drift').disabled     = true;
+        el('btn-play-card').disabled = true;
+        el('btn-augment').disabled   = !augmentOk;
+        el('btn-end-turn').disabled  = !isPlayerTurn;
+        el('btn-augment').style.display  = '';
+        el('btn-end-turn').style.display = '';
+        return;
+    }
+
+    // ── Selecting phase: hide augment/end-turn; show normal buttons ───────────
+    el('btn-augment').style.display  = 'none';
+    el('btn-end-turn').style.display = 'none';
+
+    const hasHand   = selectedHandCard !== null;
+    const fullSel   = buildFullSelection();
+    const hasCenter = fullSel.length > 0;
 
     const captureOk = hasHand && hasCenter &&
         isValidCapture(selectedHandCard, fullSel);
@@ -249,12 +428,16 @@ function updateButtonStates() {
     const buildOk = hasHand && hasCenter &&
         isValidBuild(selectedHandCard, fullSel, GameState.playerHand);
 
-    // SA rule: can drift freely except when you have a build in first phase
-    const trailOk = hasHand && (!hasActiveBuild('player') || GameState.isSecondPhase);
+    // Drift: play a matching card on your own build to convert it to an open pile
+    const driftOk = hasHand && isValidDrift(selectedHandCard, true);
 
-    el('btn-capture').disabled = !(isPlayerTurn && captureOk);
-    el('btn-build').disabled   = !(isPlayerTurn && buildOk);
-    el('btn-trail').disabled   = !(isPlayerTurn && trailOk);
+    // Play Card: place any card on the center table (blocked in round 1 with active build)
+    const playCardOk = hasHand && (!hasActiveBuild('player') || GameState.roundNumber !== 1);
+
+    el('btn-capture').disabled   = !(isPlayerTurn && captureOk);
+    el('btn-build').disabled     = !(isPlayerTurn && buildOk);
+    el('btn-drift').disabled     = !(isPlayerTurn && driftOk);
+    el('btn-play-card').disabled = !(isPlayerTurn && playCardOk);
 }
 
 // ── Status / hint ─────────────────────────────────────────────────────────────
@@ -264,9 +447,31 @@ function updateStatus(msg) {
 }
 
 function updateActionHint() {
+    // ── Augmenting phase hint ─────────────────────────────────────────────────
+    if (turnPhase === 'augmenting') {
+        const myBuild = GameState.centerCards.find(i => i.type === 'build' && i.owner === 'player');
+        if (!myBuild) { updateStatus('No active build. Click End Turn.'); return; }
+        const fullSel = buildFullSelection();
+        if (fullSel.length === 0) {
+            updateStatus(`Build-${myBuild.targetValue} is yours. Select center cards summing to ${myBuild.targetValue} to augment, or click End Turn.`);
+        } else {
+            const sum = fullSel.reduce((s, i) => s + getItemValue(i), 0);
+            if (sum === myBuild.targetValue) {
+                updateStatus(`Sum = ${sum} ✓  Click Augment to add these cards to your build.`);
+            } else {
+                updateStatus(`Sum = ${sum} — need exactly ${myBuild.targetValue} to augment.`);
+            }
+        }
+        return;
+    }
+
+    // ── Selecting phase hint ──────────────────────────────────────────────────
     if (!selectedHandCard) {
+        const hasBuild = hasActiveBuild('player');
         if (GameState.centerCards.length === 0 && GameState.aiCaptures.length === 0) {
-            updateStatus('No cards on the table — you must drift (play a card face-up).');
+            updateStatus('No cards on the table — select a card to play it to the center.');
+        } else if (hasBuild && GameState.roundNumber === 1) {
+            updateStatus('You have a build — select your build card to Drift it, or select center cards to Capture/Build.');
         } else {
             updateStatus('Select a card from your hand to play.');
         }
@@ -274,12 +479,15 @@ function updateActionHint() {
     }
     const opts = getValidCaptureOptions(selectedHandCard, true);
     const fullSel = buildFullSelection();
+    const canDrift = isValidDrift(selectedHandCard, true);
 
     if (fullSel.length === 0) {
-        if (opts.length > 0) {
-            updateStatus(`${cardToString(selectedHandCard)} selected — select center cards (or AI's pile top) to capture/build, or Drift.`);
+        if (canDrift) {
+            updateStatus(`${cardToString(selectedHandCard)} matches your build — click Drift to leave it open, or select center cards.`);
+        } else if (opts.length > 0) {
+            updateStatus(`${cardToString(selectedHandCard)} selected — select center cards to capture/build, or Play Card.`);
         } else {
-            updateStatus(`${cardToString(selectedHandCard)} selected — no captures available. Select cards to build, or Drift.`);
+            updateStatus(`${cardToString(selectedHandCard)} selected — no captures available. Select cards to build, or Play Card.`);
         }
     } else {
         const sum = fullSel.reduce((s, i) => s + getItemValue(i), 0);
@@ -288,7 +496,17 @@ function updateActionHint() {
         if (captureValid) {
             updateStatus(`Sum = ${sum} ✓  Click Capture (or add more cards to build).`);
         } else if (buildValid) {
-            const target = selectedHandCard.value + sum;
+            // Compute the actual build target (mirrors isValidBuild logic)
+            const ptItem   = fullSel.find(i => i.type === 'pileTopCard');
+            const myBldIt  = fullSel.find(i => i.type === 'build' && i.owner === 'player');
+            const oppBldIt = fullSel.find(i => i.type === 'build' && i.owner !== 'player');
+            const isHijack = !!(myBldIt && oppBldIt);
+            const nonPile  = fullSel.filter(i => i.type !== 'pileTopCard');
+            const base     = isHijack ? nonPile.filter(i => i !== myBldIt) : nonPile;
+            const bSum     = base.reduce((s, i) => s + getItemValue(i), 0);
+            const tNoP     = selectedHandCard.value + bSum;
+            const target   = (ptItem && ptItem.card.value === tNoP) ? tNoP
+                           : (ptItem ? tNoP + ptItem.card.value : tNoP);
             updateStatus(`Build to ${target} — you have a ${target} in hand to capture later. Click Build.`);
         } else {
             const target = selectedHandCard.value + sum;
@@ -330,7 +548,8 @@ function handleCenterItemClick(item) {
 
 function handleAIPileTopClick() {
     if (GameState.currentTurn !== 'player' || isAnimating) return;
-    if (!selectedHandCard) {
+    // In selecting phase: requires a hand card first; in augmenting phase: no hand card needed
+    if (turnPhase === 'selecting' && !selectedHandCard) {
         updateStatus('Select a card from your hand first!');
         return;
     }
@@ -376,24 +595,55 @@ function handleBuild() {
     if (!selectedHandCard || isAnimating) return;
     const fullSel = buildFullSelection();
     if (!isValidBuild(selectedHandCard, fullSel, GameState.playerHand)) {
-        const sum    = fullSel.reduce((s, i) => s + getItemValue(i), 0);
-        const target = selectedHandCard.value + sum;
-        updateStatus(`Invalid build — you need a ${target} in your hand to build to ${target}.`);
+        updateStatus(`Invalid build — check that you hold the capture card and your selection is valid.`);
         return;
     }
 
-    const hc    = selectedHandCard;
-    const items = [...fullSel];
-    const sum   = items.reduce((s, i) => s + getItemValue(i), 0);
-    const target = hc.value + sum;
+    const hc      = selectedHandCard;
+    const items   = [...fullSel];
+    const isHijack = items.some(i => i.type === 'build' && i.owner !== 'player') &&
+                     items.some(i => i.type === 'build' && i.owner === 'player');
+    const isSteal  = !isHijack && items.some(i => i.type === 'build' && i.owner !== 'player');
     resetSelection();
 
-    executeBuild(hc, items, true);
-    updateStatus(`Built to ${target}! Capture it on your next turn with a ${target}.`);
+    const result = executeBuild(hc, items, true);
+    const target = result.targetValue;
+    if (isHijack) {
+        updateStatus(`Hijacked! Both builds merged into ${target}. Capture it with a ${target}.`);
+    } else if (isSteal) {
+        updateStatus(`You stole the AI's build! Now targeting ${target} — capture with a ${target}.`);
+    } else {
+        updateStatus(`Built to ${target}! Augment your build or click End Turn.`);
+    }
+    // After building: enter augment phase so player can add more cards before ending turn
+    afterPlayerMove(true);
+}
+
+// Drift: intentionally not capturing your own build — play the capture card onto it,
+// converting it to an open pile that anyone can capture.
+function handleDrift() {
+    if (!selectedHandCard || isAnimating) return;
+
+    const hc = selectedHandCard;
+    if (!isValidDrift(hc, true)) {
+        updateStatus('Drift requires your build\'s capture card — select that card first.');
+        return;
+    }
+    resetSelection();
+
+    const result = executeDrift(hc, true);
+    if (result.error) {
+        selectedHandCard = hc; // restore
+        updateStatus(result.error);
+        renderGame();
+        return;
+    }
+    updateStatus(`Drifted your build (value ${hc.value}) — it stays on the table as an open pile!`);
     afterPlayerMove();
 }
 
-function handleTrail() {
+// Play Card: place a card face-up on the center table (no capture).
+function handlePlayCard() {
     if (!selectedHandCard || isAnimating) return;
 
     const hc = selectedHandCard;
@@ -406,26 +656,67 @@ function handleTrail() {
         renderGame();
         return;
     }
-    updateStatus(`Drifted ${cardToString(hc)} to the center.`);
+    updateStatus(`Played ${cardToString(hc)} to the center.`);
     afterPlayerMove();
 }
 
 // ── Post-move flow ────────────────────────────────────────────────────────────
-function afterPlayerMove() {
+// enterAugmentPhase = true: player just built and may augment before ending turn.
+// enterAugmentPhase = false (default): turn passes straight to AI.
+function afterPlayerMove(enterAugmentPhase = false) {
     renderGame();
 
     const status = checkAfterTurn();
 
     if (status === 'roundOver') {
+        turnPhase = 'selecting';
         setTimeout(endRoundUI, 900);
         return;
     }
 
-    if (status === 'newHands') {
+    if (enterAugmentPhase) {
+        turnPhase = 'augmenting';
+        GameState.currentTurn = 'player';
         renderGame();
-        updateStatus('New cards dealt! Second phase — drifting is now always allowed.');
+        const myBuild = GameState.centerCards.find(i => i.type === 'build' && i.owner === 'player');
+        if (myBuild) {
+            updateStatus(`Select center cards summing to ${myBuild.targetValue} and click Augment, or click End Turn.`);
+        }
+        return;
     }
 
+    turnPhase = 'selecting';
+    GameState.currentTurn = 'ai';
+    renderGame();
+    setTimeout(doAITurn, 1300);
+}
+
+// ── Augment: add center cards to player's own build (no hand card consumed) ──
+function handleAugment() {
+    if (isAnimating) return;
+    const fullSel = buildFullSelection();
+    if (!isValidAugment(fullSel, true)) {
+        const myBuild = GameState.centerCards.find(i => i.type === 'build' && i.owner === 'player');
+        updateStatus(`Augment: select center cards summing to ${myBuild ? myBuild.targetValue : '?'}.`);
+        return;
+    }
+
+    const items = [...fullSel];
+    resetSelection(); // clear center selection; turnPhase stays 'augmenting'
+
+    const result = executeAugment(items, true);
+    if (result.error) { updateStatus(result.error); renderGame(); return; }
+
+    renderGame();
+    const myBuild = result.build;
+    updateStatus(`Augmented! Build-${myBuild.targetValue} now has ${myBuild.cards.length} cards. Augment more or click End Turn.`);
+}
+
+// ── End Turn: finish player's augment phase and pass to AI ────────────────────
+function handleEndTurn() {
+    if (isAnimating) return;
+    turnPhase = 'selecting';
+    resetSelection();
     GameState.currentTurn = 'ai';
     renderGame();
     setTimeout(doAITurn, 1300);
@@ -439,12 +730,30 @@ function doAITurn() {
         const move = getAIMove();
 
         if (!move && GameState.aiHand.length > 0) {
-            // Fallback: force drift first card
+            // Safety fallback: force play first card (should rarely trigger)
             const trailCard = GameState.aiHand[0];
-            executeTrail(trailCard, false);
-            updateStatus(`AI drifted ${cardToString(trailCard)}.`);
+            const result = executeTrail(trailCard, false);
+            if (result.error) {
+                // Trail blocked (AI has active build in round 1) — try drift as last resort
+                const myBuild = GameState.centerCards.find(item => item.type === 'build' && item.owner === 'ai');
+                if (myBuild) {
+                    const driftCard = GameState.aiHand.find(c => c.value === myBuild.targetValue);
+                    if (driftCard) {
+                        const driftResult = executeDrift(driftCard, false);
+                        if (driftResult.success) {
+                            updateStatus(`AI drifted its build (value ${driftCard.value}) — now an open pile!`);
+                        }
+                    }
+                }
+            } else {
+                updateStatus(`AI played ${cardToString(trailCard)} to the center.`);
+            }
         } else if (move) {
             applyAIMove(move);
+            // After a build, AI augments its build with any available center cards
+            if (move.type === 'build') {
+                doAIAugmentation();
+            }
         }
 
         renderGame();
@@ -453,11 +762,6 @@ function doAITurn() {
         if (status === 'roundOver') {
             setTimeout(endRoundUI, 900);
             return;
-        }
-
-        if (status === 'newHands') {
-            renderGame();
-            updateStatus('New cards dealt! Second phase — drifting is now always allowed.');
         }
 
         GameState.currentTurn = 'player';
@@ -477,11 +781,48 @@ function applyAIMove(move) {
             updateStatus(`AI captured ${result.capturedCards.length} card${result.capturedCards.length !== 1 ? 's' : ''}${extra}.`);
         }
     } else if (move.type === 'build') {
-        const result = executeBuild(move.handCard, move.centerItems, false);
-        updateStatus(`AI built to ${result.targetValue}.`);
+        const result   = executeBuild(move.handCard, move.centerItems, false);
+        const isHijack = move.centerItems.some(i => i.type === 'build' && i.owner === 'ai') &&
+                         move.centerItems.some(i => i.type === 'build' && i.owner === 'player');
+        const isSteal  = !isHijack && move.centerItems.some(i => i.type === 'build' && i.owner === 'player');
+        if (isHijack) {
+            updateStatus(`AI hijacked your build and merged both into a ${result.targetValue}-build!`);
+        } else if (isSteal) {
+            updateStatus(`AI stole your build! Now targeting ${result.targetValue}.`);
+        } else {
+            updateStatus(`AI built to ${result.targetValue}.`);
+        }
+    } else if (move.type === 'drift') {
+        const result = executeDrift(move.handCard, false);
+        if (result.success) {
+            updateStatus(`AI drifted its build (value ${move.handCard.value}) — now an open pile!`);
+        }
     } else if (move.type === 'trail') {
-        executeTrail(move.handCard, false);
-        updateStatus(`AI drifted ${cardToString(move.handCard)}.`);
+        const result = executeTrail(move.handCard, false);
+        if (!result.error) {
+            updateStatus(`AI played ${cardToString(move.handCard)} to the center.`);
+        }
+    }
+}
+
+// ── AI augmentation: greedily add center cards to AI's build ─────────────────
+function doAIAugmentation() {
+    let augmented = true;
+    while (augmented) {
+        augmented = false;
+        const myBuild = GameState.centerCards.find(i => i.type === 'build' && i.owner === 'ai');
+        if (!myBuild) break;
+
+        // Available items: floor cards and player's pile top (not own pile, builds, or drifted)
+        const center    = GameState.centerCards.filter(i => i !== myBuild && i.type !== 'drifted' && i.type !== 'build');
+        const playerTop = getOpponentTopPileItem(false); // AI's opponent is the player
+        const available = playerTop ? [...center, playerTop] : [...center];
+
+        const subsets = findSubsetsWithSum(available, myBuild.targetValue);
+        if (subsets.length > 0) {
+            executeAugment(subsets[0], false);
+            augmented = true;
+        }
     }
 }
 
@@ -502,9 +843,10 @@ function showRoundScoresUI(scores) {
     const overlay = el('score-overlay');
     el('overlay-title').textContent = `Round ${GameState.roundNumber - 1} Complete!`;
 
+    // scores.player/ai.cardCount already reflects only this round's captures (via slice in calculateRoundScores)
     el('score-breakdown').innerHTML =
         scoreTableHeader() +
-        makeScoreRow(`Most cards (${scores.player.cardCount} vs ${scores.ai.cardCount}) — 2pts, tie=1`,
+        makeScoreRow(`Cards this round (${scores.player.cardCount} vs ${scores.ai.cardCount}) — 2pts, tie=1`,
             scores.player.mostCards, scores.ai.mostCards) +
         makeScoreRow(`5+ Spades (${scores.player.spadeCount} vs ${scores.ai.spadeCount})`,
             scores.player.fiveSpades, scores.ai.fiveSpades) +
@@ -512,7 +854,8 @@ function showRoundScoresUI(scores) {
         makeScoreRow('10♦ Big Casino',   scores.player.bigCasino,    scores.ai.bigCasino) +
         makeScoreRow('Aces',             scores.player.aces,         scores.ai.aces) +
         makeTotalRow('Round Total',      scores.player.total,        scores.ai.total) +
-        makeTotalRow('Game Score',       GameState.playerScore,      GameState.aiScore);
+        makeTotalRow('Game Score',       GameState.playerScore,      GameState.aiScore) +
+        `<div class="score-row"><span class="sr-label sr-note">Your pile carries into Round 2 — ${GameState.playerCaptures.length} cards total so far.</span></div>`;
 
     overlay.classList.remove('hidden');
 }
@@ -533,7 +876,7 @@ function showGameOverUI() {
                 <span class="fscore-val ai">${GameState.aiScore}</span>
             </div>
         </div>
-        <p class="gameover-note">First to 11 points wins.</p>`;
+        <p class="gameover-note">Game over after 2 rounds. Most points wins!</p>`;
 
     el('gameover-overlay').classList.remove('hidden');
 }
@@ -541,22 +884,26 @@ function showGameOverUI() {
 function handleNextRound() {
     el('score-overlay').classList.add('hidden');
     startRound();
+    turnPhase = 'selecting';
     resetSelection();
     renderGame();
+    const pTotal = GameState.playerCaptures.length;
+    const aTotal = GameState.aiCaptures.length;
     if (GameState.currentTurn === 'ai') {
-        updateStatus('AI goes first this round (loser starts).');
+        updateStatus(`Round 2 — AI goes first. Your pile: ${pTotal} cards, AI pile: ${aTotal} cards.`);
         setTimeout(doAITurn, 1300);
     } else {
-        updateStatus('New round! No cards on the table — you must drift your first card.');
+        updateStatus(`Round 2! Your pile: ${pTotal} cards, AI pile: ${aTotal} cards. Select a card to continue.`);
     }
 }
 
 function handlePlayAgain() {
     el('gameover-overlay').classList.add('hidden');
     initGame();
+    turnPhase = 'selecting';
     resetSelection();
     renderGame();
-    updateStatus('New game! No cards on the table — you must drift your first card.');
+    updateStatus('New game! Round 1 — select a card to play it or start building.');
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

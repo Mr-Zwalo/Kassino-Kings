@@ -407,6 +407,14 @@ html, body {
 .build-owner-label.owner-player { color: #7af; }
 .build-owner-label.owner-ai     { color: #f88; }
 
+/* Drifted pile — open pile anyone can capture */
+.drifted-wrapper .drifted-label {
+    background: #4a7fc1;
+    color: #fff;
+}
+.drifted-wrapper:hover { transform: translateY(-4px); }
+.drifted-wrapper.center-selected { filter: drop-shadow(0 0 8px rgba(0,200,255,.7)); }
+
 /* ── Buttons ─────────────────────────────────────────────────────────────────*/
 .action-btn {
     padding: 9px 20px;
@@ -509,6 +517,7 @@ html, body {
 .sr-p-head, .sr-a-head { min-width: 32px; text-align: right; color: #999; font-size: .85em; }
 .sr-p-head { color: #7af; }
 .sr-a-head { color: #f88; }
+.sr-note   { color: #888; font-size: .85em; }
 
 /* game-over */
 .final-scores {
@@ -544,7 +553,94 @@ html, body {
     margin-top: 6px;
 }
 
-/* ── Animations ──────────────────────────────────────────────────────────────*/
+/* ── Move Log ────────────────────────────────────────────────────────────────*/
+.move-log {
+    background: rgba(0,0,0,.38);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 6px;
+    padding: 4px 8px;
+    max-height: 68px;
+    overflow-y: auto;
+    font-size: .72em;
+    line-height: 1.5;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,.2) transparent;
+}
+
+.log-empty {
+    color: rgba(255,255,255,.3);
+    font-style: italic;
+}
+
+.log-entry {
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+    padding: 1px 0;
+    border-bottom: 1px solid rgba(255,255,255,.05);
+    color: #ccc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.log-entry:last-child { border-bottom: none; }
+
+.log-round {
+    flex-shrink: 0;
+    color: rgba(255,215,0,.6);
+    font-size: .85em;
+    min-width: 18px;
+}
+
+.log-actor {
+    flex-shrink: 0;
+    font-weight: bold;
+    min-width: 20px;
+}
+.log-player .log-actor { color: #7af; }
+.log-ai     .log-actor { color: #f88; }
+
+/* Augment button — teal */
+.btn-augment {
+    background: linear-gradient(to bottom, #1a7a7a, #0d4a4a);
+    border-color: #5abcbc;
+}
+.btn-augment:hover:not(:disabled) {
+    background: linear-gradient(to bottom, #219494, #115a5a);
+    box-shadow: 0 4px 14px rgba(0,0,0,.35);
+    transform: translateY(-1px);
+}
+
+/* End Turn button — amber */
+.btn-end-turn {
+    background: linear-gradient(to bottom, #7a6220, #4a3a10);
+    border-color: #c8a020;
+}
+.btn-end-turn:hover:not(:disabled) {
+    background: linear-gradient(to bottom, #8a7228, #5a4418);
+    box-shadow: 0 4px 14px rgba(0,0,0,.35);
+    transform: translateY(-1px);
+}
+
+/* ── Drag and Drop ───────────────────────────────────────────────────────────*/
+.card[draggable="true"] { cursor: grab; }
+.card[draggable="true"]:active { cursor: grabbing; }
+.card.dragging { opacity: 0.45; transform: scale(0.92); }
+
+/* Highlight valid drop targets when dragging */
+.drop-target {
+    outline: 2px solid var(--gold) !important;
+    outline-offset: 3px;
+    transition: outline-color .1s;
+}
+
+/* Build augmented indicator */
+.build-augmented-badge {
+    font-size: .62em;
+    color: #9df;
+    letter-spacing: .3px;
+}
+
 @keyframes dealIn {
     from { transform: translateY(-60px) scale(.8); opacity: 0; }
     to   { transform: translateY(0)    scale(1);   opacity: 1; }
