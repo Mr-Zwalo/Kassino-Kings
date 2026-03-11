@@ -88,6 +88,17 @@ function findSubsetsWithSum(items, targetSum) {
 }
 
 // ── Pile top card helpers ─────────────────────────────────────────────────────
+// The opponent's pile top is "activated" when the center contains a floor card
+// or a center build whose targetValue equals the pile top's card value.
+// Without activation the pile top may not be used in captures or contributing builds.
+function isPileTopActivatedFor(pileTopValue) {
+    return GameState.centerCards.some(item => {
+        if (item.type === 'build')   return item.targetValue === pileTopValue;
+        if (item.type === 'drifted') return false;
+        return item.value === pileTopValue;
+    });
+}
+
 // Returns the top-card wrapper for the OPPONENT's pile.
 // isPlayer = true  → player is acting; opponent = AI
 // isPlayer = false → AI is acting;     opponent = player
@@ -115,9 +126,9 @@ function isValidCapture(handCard, selectedItems) {
 }
 
 // Return all valid capture combinations for handCard (includes opponent pile top).
-// Pile-top activation rule (capture): a subset that includes the pile top is only
-// valid when it also contains at least one regular floor card whose value equals the
-// pile top's value — you cannot "pick up" the pile top card in isolation.
+// Pile-top activation rule (capture): pile top may only be included in a capture
+// if the center contains a matching floor card OR a center build whose targetValue
+// equals the pile top's value. Once activated the pile top can join any valid combo.
 function getValidCaptureOptions(handCard, isPlayer = true) {
     const center     = GameState.centerCards;
     const oppTop     = getOpponentTopPileItem(isPlayer);
@@ -126,17 +137,11 @@ function getValidCaptureOptions(handCard, isPlayer = true) {
 
     if (!oppTop) return subsets;
 
-    const pileTopValue = oppTop.card.value;
-    return subsets.filter(subset => {
-        if (!subset.some(i => i.type === 'pileTopCard')) return true; // no pile top → always OK
-        // Pile top is included: require at least one matching regular floor card in the same subset
-        return subset.some(
-            i => i.type !== 'pileTopCard' &&
-                 i.type !== 'build'       &&
-                 i.type !== 'drifted'     &&
-                 getItemValue(i) === pileTopValue
-        );
-    });
+    // If pile top is not globally activated, strip it from every subset
+    if (!isPileTopActivatedFor(oppTop.card.value)) {
+        return subsets.filter(s => !s.some(i => i.type === 'pileTopCard'));
+    }
+    return subsets;
 }
 
 // ── Build validation ──────────────────────────────────────────────────────────
@@ -145,41 +150,62 @@ function isValidBuild(handCard, selectedCenterItems, hand) {
 
     const who = (hand === GameState.playerHand) ? 'player' : 'ai';
 
-    const hasMyBuild        = hasActiveBuild(who);
-    const myBuildSelected   = selectedCenterItems.some(item => item.type === 'build' && item.owner === who);
-    const oppBuildSelected  = selectedCenterItems.some(item => item.type === 'build' && item.owner !== who);
+    const hasMyBuild       = hasActiveBuild(who);
+    const myBuildItem      = selectedCenterItems.find(i => i.type === 'build' && i.owner === who);
+    const oppBuildItem     = selectedCenterItems.find(i => i.type === 'build' && i.owner !== who);
+    const myBuildSelected  = !!myBuildItem;
+    const oppBuildSelected = !!oppBuildItem;
+    const pileTopItem      = selectedCenterItems.find(i => i.type === 'pileTopCard');
 
     // Cannot use your own pile's top card as build material
     if (selectedCenterItems.some(item => item.type === 'pileTopCard' && item.pileOwner === who))
         return false;
 
-    // Pile top activation rule (build): the opponent's pile top may only be included
-    // in a build when the selection also contains an existing center build being extended.
-    // (You cannot start a brand-new build using only the pile top.)
-    if (selectedCenterItems.some(item => item.type === 'pileTopCard')) {
-        if (!selectedCenterItems.some(item => item.type === 'build')) return false;
-    }
-
     // Cannot include a drifted pile in a build
     if (selectedCenterItems.some(item => item.type === 'drifted'))
         return false;
 
-    // ── Steal opponent's build ────────────────────────────────────────────────
-    // Allowed once per build; you must NOT already own a build.
+    // ── Steal / hijack opponent's build ───────────────────────────────────────
     if (oppBuildSelected) {
-        if (hasMyBuild) return false; // can't steal while owning a build
-        const oppBuild = selectedCenterItems.find(item => item.type === 'build' && item.owner !== who);
-        if (oppBuild && oppBuild.stolen) return false; // already been stolen once
+        if (oppBuildItem.stolen) return false; // already been hijacked/stolen once
+        // If you already own a build, only a hijack (both builds selected) is allowed
+        if (hasMyBuild && !myBuildSelected) return false;
     }
 
-    // ── One build per player: must extend existing build if one is active ─────
+    // ── One build per player: must extend/hijack existing build if active ─────
     if (hasMyBuild && !myBuildSelected && !oppBuildSelected) return false;
 
-    const selectedSum = selectedCenterItems.reduce((s, item) => s + getItemValue(item), 0);
-    const target = handCard.value + selectedSum;
+    // ── Hijack: both player's own build AND opponent's build are selected ─────
+    // handCard + oppBuild.targetValue must equal myBuild.targetValue (merge).
+    const isHijack = hasMyBuild && myBuildSelected && oppBuildSelected;
+
+    // ── Compute build target ──────────────────────────────────────────────────
+    // Rules for items that contribute to the sum:
+    //  • Own build in a hijack: does NOT add to sum (it gets merged in at end)
+    //  • Pile top (sweep mode): does NOT add to sum when pileTop.value == target
+    //  • Pile top (contributing mode): DOES add to sum when globally activated
+    //  • All other items: add to sum normally
+    const nonPileItems = selectedCenterItems.filter(i => i.type !== 'pileTopCard');
+    const baseItems    = isHijack ? nonPileItems.filter(i => i !== myBuildItem) : nonPileItems;
+    const baseSum      = baseItems.reduce((s, i) => s + getItemValue(i), 0);
+    const targetWithoutPileTop = handCard.value + baseSum;
+
+    let target;
+    if (pileTopItem) {
+        const ptVal          = pileTopItem.card.value;
+        const isSweep        = ptVal === targetWithoutPileTop;
+        const isContributing = isPileTopActivatedFor(ptVal);
+        if (!isSweep && !isContributing) return false; // pile top not usable in this build
+        target = isSweep ? targetWithoutPileTop : targetWithoutPileTop + ptVal;
+    } else {
+        target = targetWithoutPileTop;
+    }
 
     // SA 40-card deck: max card value is 10
     if (target < 2 || target > 10) return false;
+
+    // ── Hijack: merged build target must equal own build's target ─────────────
+    if (isHijack && target !== myBuildItem.targetValue) return false;
 
     // Must hold another card in hand to capture this build later
     return hand.some(card => {
@@ -275,10 +301,27 @@ function executeCapture(handCard, selectedCenterItems, isPlayer) {
 function executeBuild(handCard, selectedCenterItems, isPlayer) {
     const who = isPlayer ? 'player' : 'ai';
 
-    const isSteal = selectedCenterItems.some(item => item.type === 'build' && item.owner !== who);
+    const myBuildItem  = selectedCenterItems.find(i => i.type === 'build' && i.owner === who);
+    const oppBuildItem = selectedCenterItems.find(i => i.type === 'build' && i.owner !== who);
+    const isHijack     = !!(myBuildItem && oppBuildItem);
+    const isSteal      = !!oppBuildItem; // true for both regular steal and hijack
+    const pileTopItem  = selectedCenterItems.find(i => i.type === 'pileTopCard');
 
-    const selectedSum = selectedCenterItems.reduce((s, item) => s + getItemValue(item), 0);
-    const target = handCard.value + selectedSum;
+    // Compute target using the same logic as isValidBuild
+    const nonPileItems = selectedCenterItems.filter(i => i.type !== 'pileTopCard');
+    const baseItems    = isHijack ? nonPileItems.filter(i => i !== myBuildItem) : nonPileItems;
+    const baseSum      = baseItems.reduce((s, i) => s + getItemValue(i), 0);
+    const targetWithoutPileTop = handCard.value + baseSum;
+
+    let target;
+    if (pileTopItem) {
+        const ptVal = pileTopItem.card.value;
+        // Sweep: pile top value equals target → doesn't change the target
+        // Contributing: pile top is activated → adds to the sum
+        target = (ptVal === targetWithoutPileTop) ? targetWithoutPileTop : targetWithoutPileTop + ptVal;
+    } else {
+        target = targetWithoutPileTop;
+    }
 
     // Collect all cards going into the new build
     const buildCards = [handCard];
@@ -296,18 +339,15 @@ function executeBuild(handCard, selectedCenterItems, isPlayer) {
         GameState.aiHand = GameState.aiHand.filter(c => c.id !== handCard.id);
     }
 
-    for (const item of selectedCenterItems) {
-        if (item.type === 'pileTopCard') {
-            const pile = item.pileOwner === 'player' ? GameState.playerCaptures : GameState.aiCaptures;
-            const idx  = pile.length - 1;
-            if (idx >= 0 && pile[idx].id === item.card.id) {
-                pile.splice(idx, 1);
-                // If the removed card was in the round-1 section, keep the offset in sync
-                if (item.pileOwner === 'player') {
-                    if (idx < GameState.roundPlayerCaptureStart) GameState.roundPlayerCaptureStart--;
-                } else {
-                    if (idx < GameState.roundAICaptureStart) GameState.roundAICaptureStart--;
-                }
+    if (pileTopItem) {
+        const pile = pileTopItem.pileOwner === 'player' ? GameState.playerCaptures : GameState.aiCaptures;
+        const idx  = pile.length - 1;
+        if (idx >= 0 && pile[idx].id === pileTopItem.card.id) {
+            pile.splice(idx, 1);
+            if (pileTopItem.pileOwner === 'player') {
+                if (idx < GameState.roundPlayerCaptureStart) GameState.roundPlayerCaptureStart--;
+            } else {
+                if (idx < GameState.roundAICaptureStart) GameState.roundAICaptureStart--;
             }
         }
     }
@@ -325,13 +365,15 @@ function executeBuild(handCard, selectedCenterItems, isPlayer) {
         cards:       buildCards,
         targetValue: target,
         owner:       who,
-        stolen:      isSteal, // stolen builds cannot be stolen a second time
+        stolen:      isSteal, // hijacked/stolen builds cannot be modified again
         id:          `build_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
     };
     GameState.centerCards.push(build);
 
     // Log the move
-    const action = isSteal ? `stole opponent's build →` : 'built to';
+    const action = isHijack ? `hijacked & merged builds →`
+                 : isSteal  ? `stole opponent's build →`
+                 :             'built to';
     addMoveLogEntry(who, `${action} ${target} using ${cardToString(handCard)}`);
 
     return { targetValue: target, build };

@@ -3,12 +3,11 @@
 const MIN_BUILD_TARGET_VALUE = 5; // SA deck max = 10; builds below 5 are rarely strategic
 
 // ── Pile-top build rule ───────────────────────────────────────────────────────
-// A subset used for building may include the opponent's pile top only when
-// the subset also contains an existing center build being extended.
-// (Starting a brand-new build from the pile top alone is not allowed.)
+// Pile top in 'usable' is only added when globally activated (isPileTopActivatedFor),
+// so any subset produced by findSubsetsWithSum that contains the pile top is valid.
+// Sweep pile top (pile top value == build target) is handled separately after subset search.
 function isPileTopValidInSubset(subset) {
-    if (!subset.some(i => i.type === 'pileTopCard')) return true; // no pile top → always OK
-    return subset.some(i => i.type === 'build');
+    return true; // activation is checked before adding to usable
 }
 
 // ── AI entry point ────────────────────────────────────────────────────────────
@@ -104,22 +103,42 @@ function scoreCaptureMove(handCard, centerItems) {
     return score;
 }
 
-// ── Build / Augment / Steal ───────────────────────────────────────────────────
+// ── Build / Augment / Steal / Hijack ─────────────────────────────────────────
 function findBestAIBuild() {
     const hand             = GameState.aiHand;
     const center           = GameState.centerCards;
     const aiHasActiveBuild = hasActiveBuild('ai');
 
-    // Player's pile top is available as build material subject to the value-match rule
-    // (handled per-subset below).
-    const playerTopItem = getOpponentTopPileItem(false);
+    // Player's pile top: only added to 'usable' when globally activated.
+    // Sweep pile top (value == build target) is handled separately below.
+    const playerTopItem   = getOpponentTopPileItem(false);
+    const pileTopActive   = playerTopItem && isPileTopActivatedFor(playerTopItem.card.value);
 
-    // ── Try to steal the player's build (if not already stolen) ──────────────
+    // ── Try to HIJACK the player's build (AI already owns a build) ────────────
+    // Hijack condition: handCard + playerBuild.targetValue == myBuild.targetValue
+    if (aiHasActiveBuild) {
+        const myBuild     = center.find(item => item.type === 'build' && item.owner === 'ai');
+        const playerBuild = center.find(item => item.type === 'build' && item.owner === 'player' && !item.stolen);
+        if (myBuild && playerBuild) {
+            for (const card of hand) {
+                if (card.value + playerBuild.targetValue !== myBuild.targetValue) continue;
+                // Must still hold a capture card (not the card being played)
+                if (!hand.some(c => c !== card && c.value === myBuild.targetValue)) continue;
+                return {
+                    type:        'build',
+                    handCard:    card,
+                    centerItems: [playerBuild, myBuild],
+                    targetValue: myBuild.targetValue
+                };
+            }
+        }
+    }
+
+    // ── Try to steal the player's build (AI does NOT own a build) ────────────
     if (!aiHasActiveBuild) {
         const playerBuild = center.find(item => item.type === 'build' && item.owner === 'player' && !item.stolen);
         if (playerBuild) {
             for (const card of hand) {
-                // We need a card to capture the new stolen build later
                 for (const other of hand) {
                     if (other === card) continue;
                     const newTarget = card.value + playerBuild.targetValue;
@@ -141,14 +160,15 @@ function findBestAIBuild() {
             possibleTargets.add(other.value);
         }
 
-        // Usable center items:
-        // - exclude opponent's builds (can't incorporate, only steal)
-        // - exclude drifted piles (can't build with them)
+        // Usable contributing center items:
+        // - exclude opponent's builds (can only steal/hijack, not incorporate)
+        // - exclude drifted piles
+        // - include player's pile top only when globally activated
         let usable = center.filter(
             item => !(item.type === 'build' && item.owner === 'player') &&
                     item.type !== 'drifted'
         );
-        if (playerTopItem) usable = [...usable, playerTopItem];
+        if (pileTopActive) usable = [...usable, playerTopItem];
 
         // If AI already has a build, it must be included in the selection
         const myBuild = aiHasActiveBuild
@@ -173,7 +193,9 @@ function findBestAIBuild() {
                     if (!isPileTopValidInSubset(subset)) continue;
                     const captureCard = hand.find(c => c !== card && c.value === target);
                     if (captureCard) {
-                        return { type: 'build', handCard: card, centerItems: subset, targetValue: target };
+                        // Optionally sweep pile top into the build if it matches target
+                        const centerItems = _maybeAddSweep(subset, playerTopItem, pileTopActive, target);
+                        return { type: 'build', handCard: card, centerItems, targetValue: target };
                     }
                 }
             } else {
@@ -183,13 +205,25 @@ function findBestAIBuild() {
                     if (!isPileTopValidInSubset(subset)) continue;
                     const captureCard = hand.find(c => c !== card && c.value === target);
                     if (captureCard) {
-                        return { type: 'build', handCard: card, centerItems: subset, targetValue: target };
+                        const centerItems = _maybeAddSweep(subset, playerTopItem, pileTopActive, target);
+                        return { type: 'build', handCard: card, centerItems, targetValue: target };
                     }
                 }
             }
         }
     }
     return null;
+}
+
+// If the player's pile top is not already in the subset but its value == target,
+// add it as a sweep (free bonus — doesn't change the build target).
+function _maybeAddSweep(subset, playerTopItem, pileTopActive, target) {
+    if (!playerTopItem) return subset;
+    if (subset.some(i => i.type === 'pileTopCard')) return subset; // already in subset
+    // Only sweep when NOT already contributing (activated) to avoid double-counting
+    if (pileTopActive && playerTopItem.card.value !== target) return subset;
+    if (playerTopItem.card.value === target) return [...subset, playerTopItem];
+    return subset;
 }
 
 // ── Drift own build ───────────────────────────────────────────────────────────

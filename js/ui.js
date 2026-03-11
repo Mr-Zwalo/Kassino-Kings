@@ -156,10 +156,8 @@ function renderAIPile() {
         if (hintEl) {
             if (selectedHandCard) {
                 const pileTopValue = topCard.value;
-                const otherSel = selectedCenterItems.filter(i => i.type !== 'pileTopCard');
-                const canUse = otherSel.length === 0 ||
-                    otherSel.every(i => getItemValue(i) === pileTopValue);
-                hintEl.textContent = canUse ? '← click to include' : `← needs ${pileTopValue} on table`;
+                const pileTopActive = isPileTopActivatedFor(pileTopValue);
+                hintEl.textContent = pileTopActive ? '← click to include' : `← needs ${pileTopValue} on table`;
             } else {
                 hintEl.textContent = '';
             }
@@ -374,7 +372,17 @@ function updateActionHint() {
         if (captureValid) {
             updateStatus(`Sum = ${sum} ✓  Click Capture (or add more cards to build).`);
         } else if (buildValid) {
-            const target = selectedHandCard.value + sum;
+            // Compute the actual build target (mirrors isValidBuild logic)
+            const ptItem   = fullSel.find(i => i.type === 'pileTopCard');
+            const myBldIt  = fullSel.find(i => i.type === 'build' && i.owner === 'player');
+            const oppBldIt = fullSel.find(i => i.type === 'build' && i.owner !== 'player');
+            const isHijack = !!(myBldIt && oppBldIt);
+            const nonPile  = fullSel.filter(i => i.type !== 'pileTopCard');
+            const base     = isHijack ? nonPile.filter(i => i !== myBldIt) : nonPile;
+            const bSum     = base.reduce((s, i) => s + getItemValue(i), 0);
+            const tNoP     = selectedHandCard.value + bSum;
+            const target   = (ptItem && ptItem.card.value === tNoP) ? tNoP
+                           : (ptItem ? tNoP + ptItem.card.value : tNoP);
             updateStatus(`Build to ${target} — you have a ${target} in hand to capture later. Click Build.`);
         } else {
             const target = selectedHandCard.value + sum;
@@ -462,21 +470,22 @@ function handleBuild() {
     if (!selectedHandCard || isAnimating) return;
     const fullSel = buildFullSelection();
     if (!isValidBuild(selectedHandCard, fullSel, GameState.playerHand)) {
-        const sum    = fullSel.reduce((s, i) => s + getItemValue(i), 0);
-        const target = selectedHandCard.value + sum;
-        updateStatus(`Invalid build — you need a ${target} in your hand to build to ${target}.`);
+        updateStatus(`Invalid build — check that you hold the capture card and your selection is valid.`);
         return;
     }
 
-    const hc    = selectedHandCard;
-    const items = [...fullSel];
-    const sum   = items.reduce((s, i) => s + getItemValue(i), 0);
-    const target = hc.value + sum;
-    const isSteal = items.some(i => i.type === 'build' && i.owner !== 'player');
+    const hc      = selectedHandCard;
+    const items   = [...fullSel];
+    const isHijack = items.some(i => i.type === 'build' && i.owner !== 'player') &&
+                     items.some(i => i.type === 'build' && i.owner === 'player');
+    const isSteal  = !isHijack && items.some(i => i.type === 'build' && i.owner !== 'player');
     resetSelection();
 
-    executeBuild(hc, items, true);
-    if (isSteal) {
+    const result = executeBuild(hc, items, true);
+    const target = result.targetValue;
+    if (isHijack) {
+        updateStatus(`Hijacked! Both builds merged into ${target}. Capture it with a ${target}.`);
+    } else if (isSteal) {
         updateStatus(`You stole the AI's build! Now targeting ${target} — capture with a ${target}.`);
     } else {
         updateStatus(`Built to ${target}! Capture it on your next turn with a ${target}.`);
@@ -596,9 +605,13 @@ function applyAIMove(move) {
             updateStatus(`AI captured ${result.capturedCards.length} card${result.capturedCards.length !== 1 ? 's' : ''}${extra}.`);
         }
     } else if (move.type === 'build') {
-        const result = executeBuild(move.handCard, move.centerItems, false);
-        const isSteal = move.centerItems.some(i => i.type === 'build' && i.owner === 'player');
-        if (isSteal) {
+        const result   = executeBuild(move.handCard, move.centerItems, false);
+        const isHijack = move.centerItems.some(i => i.type === 'build' && i.owner === 'ai') &&
+                         move.centerItems.some(i => i.type === 'build' && i.owner === 'player');
+        const isSteal  = !isHijack && move.centerItems.some(i => i.type === 'build' && i.owner === 'player');
+        if (isHijack) {
+            updateStatus(`AI hijacked your build and merged both into a ${result.targetValue}-build!`);
+        } else if (isSteal) {
             updateStatus(`AI stole your build! Now targeting ${result.targetValue}.`);
         } else {
             updateStatus(`AI built to ${result.targetValue}.`);
