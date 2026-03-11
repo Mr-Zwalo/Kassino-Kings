@@ -125,23 +125,11 @@ function isValidCapture(handCard, selectedItems) {
     return sum === handCard.value;
 }
 
-// Return all valid capture combinations for handCard (includes opponent pile top).
-// Pile-top activation rule (capture): pile top may only be included in a capture
-// if the center contains a matching floor card OR a center build whose targetValue
-// equals the pile top's value. Once activated the pile top can join any valid combo.
+// Return all valid capture combinations for handCard (center floor cards only).
+// Pile-top cards are NEVER included in direct captures — they can only be moved
+// to a build via augmentation and then captured indirectly as part of that build.
 function getValidCaptureOptions(handCard, isPlayer = true) {
-    const center     = GameState.centerCards;
-    const oppTop     = getOpponentTopPileItem(isPlayer);
-    const capturable = oppTop ? [...center, oppTop] : [...center];
-    const subsets    = findSubsetsWithSum(capturable, handCard.value);
-
-    if (!oppTop) return subsets;
-
-    // If pile top is not globally activated, strip it from every subset
-    if (!isPileTopActivatedFor(oppTop.card.value)) {
-        return subsets.filter(s => !s.some(i => i.type === 'pileTopCard'));
-    }
-    return subsets;
+    return findSubsetsWithSum(GameState.centerCards, handCard.value);
 }
 
 // ── Build validation ──────────────────────────────────────────────────────────
@@ -166,18 +154,19 @@ function isValidBuild(handCard, selectedCenterItems, hand) {
         return false;
 
     // ── Steal / hijack opponent's build ───────────────────────────────────────
+    // Compute isHijack early so augmented-build check can use it
+    const isHijack = hasMyBuild && myBuildSelected && oppBuildSelected;
+
     if (oppBuildSelected) {
         if (oppBuildItem.stolen) return false; // already been hijacked/stolen once
+        // Cannot change the value of an augmented build (only "single" non-augmented builds)
+        if (!isHijack && oppBuildItem.augmented) return false;
         // If you already own a build, only a hijack (both builds selected) is allowed
         if (hasMyBuild && !myBuildSelected) return false;
     }
 
     // ── One build per player: must extend/hijack existing build if active ─────
     if (hasMyBuild && !myBuildSelected && !oppBuildSelected) return false;
-
-    // ── Hijack: both player's own build AND opponent's build are selected ─────
-    // handCard + oppBuild.targetValue must equal myBuild.targetValue (merge).
-    const isHijack = hasMyBuild && myBuildSelected && oppBuildSelected;
 
     // ── Compute build target ──────────────────────────────────────────────────
     // Rules for items that contribute to the sum:
@@ -366,6 +355,7 @@ function executeBuild(handCard, selectedCenterItems, isPlayer) {
         targetValue: target,
         owner:       who,
         stolen:      isSteal, // hijacked/stolen builds cannot be modified again
+        augmented:   false,   // set to true by executeAugment
         id:          `build_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
     };
     GameState.centerCards.push(build);
@@ -434,7 +424,73 @@ function executeTrail(handCard, isPlayer) {
     return { success: true };
 }
 
-// ── Round flow ────────────────────────────────────────────────────────────────
+// ── Augmentation ──────────────────────────────────────────────────────────────
+// Augmenting adds center cards (and optionally opponent's pile top) to an owned
+// build as a free action after the player's main move.  No hand card is consumed.
+// Selected items must sum to the build's targetValue.
+// Cannot use own pile top, drifted piles, or other builds.
+function isValidAugment(selectedCenterItems, isPlayer) {
+    const who = isPlayer ? 'player' : 'ai';
+    if (!selectedCenterItems || selectedCenterItems.length === 0) return false;
+
+    const myBuild = GameState.centerCards.find(item => item.type === 'build' && item.owner === who);
+    if (!myBuild) return false;
+
+    // Cannot use own pile top
+    if (selectedCenterItems.some(i => i.type === 'pileTopCard' && i.pileOwner === who))
+        return false;
+
+    // Cannot use drifted piles or center builds in augmentation
+    if (selectedCenterItems.some(i => i.type === 'drifted' || i.type === 'build'))
+        return false;
+
+    // All selected items must sum to the build's target value
+    const sum = selectedCenterItems.reduce((s, i) => s + getItemValue(i), 0);
+    return sum === myBuild.targetValue;
+}
+
+function executeAugment(selectedCenterItems, isPlayer) {
+    const who = isPlayer ? 'player' : 'ai';
+    const myBuild = GameState.centerCards.find(item => item.type === 'build' && item.owner === who);
+    if (!myBuild) return { error: 'No active build to augment.' };
+
+    // Collect new cards; handle pile top removal with offset adjustment
+    const newCards = [];
+    for (const item of selectedCenterItems) {
+        if (item.type === 'pileTopCard') {
+            newCards.push(item.card);
+            const pile = item.pileOwner === 'player' ? GameState.playerCaptures : GameState.aiCaptures;
+            const idx  = pile.length - 1;
+            if (idx >= 0 && pile[idx].id === item.card.id) {
+                pile.splice(idx, 1);
+                if (item.pileOwner === 'player') {
+                    if (idx < GameState.roundPlayerCaptureStart) GameState.roundPlayerCaptureStart--;
+                } else {
+                    if (idx < GameState.roundAICaptureStart) GameState.roundAICaptureStart--;
+                }
+            }
+        } else {
+            newCards.push(item);
+        }
+    }
+
+    // Remove floor items from center
+    const centerItems = selectedCenterItems.filter(i => i.type !== 'pileTopCard');
+    GameState.centerCards = GameState.centerCards.filter(
+        item => !centerItems.some(sel => sel === item)
+    );
+
+    // Add to build and re-sort (highest at bottom)
+    myBuild.cards.push(...newCards);
+    myBuild.cards.sort((a, b) => b.value - a.value);
+    myBuild.augmented = true;
+
+    const shown = newCards.slice(0, 2).map(cardToString).join(', ');
+    const extra = newCards.length > 2 ? ` +${newCards.length - 2} more` : '';
+    addMoveLogEntry(who, `augmented build-${myBuild.targetValue} with ${shown}${extra}`);
+
+    return { success: true, build: myBuild };
+}
 // Returns: 'continue' | 'roundOver'
 function checkAfterTurn() {
     if (GameState.playerHand.length > 0 || GameState.aiHand.length > 0) return 'continue';

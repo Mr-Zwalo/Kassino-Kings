@@ -3,8 +3,9 @@
 // ── UI State ──────────────────────────────────────────────────────────────────
 let selectedHandCard      = null;
 let selectedCenterItems   = [];  // items selected from the center table
-let includeOpponentPile   = false; // whether AI's pile top card is selected
+let includeOpponentPile   = false; // whether opponent's pile top card is selected
 let isAnimating           = false;
+let turnPhase             = 'selecting'; // 'selecting' | 'augmenting'
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
@@ -21,9 +22,12 @@ function setupEventListeners() {
     el('btn-build').addEventListener('click', handleBuild);
     el('btn-drift').addEventListener('click', handleDrift);
     el('btn-play-card').addEventListener('click', handlePlayCard);
+    el('btn-augment').addEventListener('click', handleAugment);
+    el('btn-end-turn').addEventListener('click', handleEndTurn);
     el('btn-new-game').addEventListener('click', () => {
         if (confirm('Start a brand-new game? Current scores will be lost.')) {
             initGame();
+            turnPhase = 'selecting';
             resetSelection();
             renderGame();
             updateStatus('New game! No cards on the table — you must play a card first.');
@@ -74,8 +78,23 @@ function renderPlayerHand() {
         if (selectedHandCard && selectedHandCard.id === card.id) {
             cardEl.classList.add('selected');
         }
-        if (GameState.currentTurn === 'player' && !isAnimating) {
+        // Hand cards are only interactive in the 'selecting' phase
+        if (GameState.currentTurn === 'player' && !isAnimating && turnPhase === 'selecting') {
+            // Click to select
             cardEl.addEventListener('click', () => handleHandCardClick(card));
+
+            // Drag to select (starts drag-and-drop selection)
+            cardEl.draggable = true;
+            cardEl.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', card.id);
+                e.dataTransfer.effectAllowed = 'move';
+                // Defer style change so the drag image is captured first
+                setTimeout(() => cardEl.classList.add('dragging'), 0);
+                handleHandCardClick(card);
+            });
+            cardEl.addEventListener('dragend', () => {
+                cardEl.classList.remove('dragging');
+            });
         }
         container.appendChild(cardEl);
     }
@@ -85,6 +104,25 @@ function renderPlayerHand() {
 function renderCenter() {
     const container = el('center-cards');
     container.innerHTML = '';
+
+    // Background drop zone: dropping hand card here clears center selection
+    if (GameState.currentTurn === 'player' && !isAnimating) {
+        container.addEventListener('dragover', (e) => {
+            if (selectedHandCard) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+        });
+        container.addEventListener('drop', (e) => {
+            // Only handle drops directly on the container (not on child items)
+            if (e.target === container && selectedHandCard) {
+                e.preventDefault();
+                selectedCenterItems = [];
+                includeOpponentPile = false;
+                renderGame();
+                updateButtonStates();
+                updateActionHint();
+            }
+        });
+    }
+
     for (const item of GameState.centerCards) {
         let itemEl;
         if (item.type === 'build') {
@@ -99,7 +137,29 @@ function renderCenter() {
             itemEl.classList.add('center-selected');
         }
         if (GameState.currentTurn === 'player' && !isAnimating) {
+            // Click to toggle selection (works in both phases)
             itemEl.addEventListener('click', () => handleCenterItemClick(item));
+
+            // Drag-and-drop: drop a hand card onto a center item to add both to selection
+            itemEl.addEventListener('dragover', (e) => {
+                if (selectedHandCard) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    itemEl.classList.add('drop-target');
+                }
+            });
+            itemEl.addEventListener('dragleave', () => itemEl.classList.remove('drop-target'));
+            itemEl.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation(); // prevent container handler
+                itemEl.classList.remove('drop-target');
+                if (selectedHandCard) {
+                    toggleCenterItem(item);
+                    renderGame();
+                    updateButtonStates();
+                    updateActionHint();
+                }
+            });
         }
         container.appendChild(itemEl);
     }
@@ -145,19 +205,39 @@ function renderAIPile() {
             cardEl.classList.add('center-selected');
         }
 
-        // Clickable when it's the player's turn and a hand card is selected
+        // Clickable/draggable for building and augmentation (not for direct capture)
         if (GameState.currentTurn === 'player' && !isAnimating) {
             cardEl.classList.add('pile-card-clickable');
             cardEl.addEventListener('click', handleAIPileTopClick);
+
+            // Drag: allow hand card to be dropped on AI pile top to include it
+            cardEl.addEventListener('dragover', (e) => {
+                if (selectedHandCard || turnPhase === 'augmenting') {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                }
+            });
+            cardEl.addEventListener('drop', (e) => {
+                e.preventDefault();
+                if (selectedHandCard || turnPhase === 'augmenting') {
+                    includeOpponentPile = !includeOpponentPile;
+                    renderGame();
+                    updateButtonStates();
+                    updateActionHint();
+                }
+            });
         }
         topArea.appendChild(cardEl);
 
-        // Show hint when a hand card is selected
+        // Show hint when a hand card is selected or in augmenting phase
         if (hintEl) {
-            if (selectedHandCard) {
-                const pileTopValue = topCard.value;
-                const pileTopActive = isPileTopActivatedFor(pileTopValue);
-                hintEl.textContent = pileTopActive ? '← click to include' : `← needs ${pileTopValue} on table`;
+            if (selectedHandCard || turnPhase === 'augmenting') {
+                if (turnPhase === 'augmenting') {
+                    hintEl.textContent = '← click/drag for augment';
+                } else {
+                    const pileTopActive = isPileTopActivatedFor(topCard.value);
+                    hintEl.textContent = pileTopActive ? '← click/drag for build' : `← needs ${topCard.value} on table`;
+                }
             } else {
                 hintEl.textContent = '';
             }
@@ -198,8 +278,6 @@ function buildBuildEl(build) {
 
     const ownerText = build.owner === 'player' ? 'Yours' : "AI's";
     const ownerClass = build.owner === 'player' ? 'owner-player' : 'owner-ai';
-
-    // Stack up to 4 cards visually
     const stack = document.createElement('div');
     stack.className = 'build-stack';
     const shown = build.cards.slice(0, Math.min(build.cards.length, 4));
@@ -221,6 +299,12 @@ function buildBuildEl(build) {
     const ownerEl = document.createElement('div');
     ownerEl.className = `build-owner-label ${ownerClass}`;
     ownerEl.textContent = ownerText;
+    if (build.augmented) {
+        const aug = document.createElement('span');
+        aug.className = 'build-augmented-badge';
+        aug.textContent = ' ★aug';
+        ownerEl.appendChild(aug);
+    }
 
     wrapper.appendChild(label);
     wrapper.appendChild(stack);
@@ -313,9 +397,30 @@ function renderMoveLog() {
 // ── Button states ─────────────────────────────────────────────────────────────
 function updateButtonStates() {
     const isPlayerTurn = GameState.currentTurn === 'player' && !isAnimating;
-    const hasHand      = selectedHandCard !== null;
-    const fullSel      = buildFullSelection();
-    const hasCenter    = fullSel.length > 0;
+
+    // ── Augmenting phase: only Augment and End Turn are relevant ──────────────
+    if (turnPhase === 'augmenting') {
+        const fullSel = buildFullSelection();
+        const augmentOk = isPlayerTurn && fullSel.length > 0 && isValidAugment(fullSel, true);
+
+        el('btn-capture').disabled   = true;
+        el('btn-build').disabled     = true;
+        el('btn-drift').disabled     = true;
+        el('btn-play-card').disabled = true;
+        el('btn-augment').disabled   = !augmentOk;
+        el('btn-end-turn').disabled  = !isPlayerTurn;
+        el('btn-augment').style.display  = '';
+        el('btn-end-turn').style.display = '';
+        return;
+    }
+
+    // ── Selecting phase: hide augment/end-turn; show normal buttons ───────────
+    el('btn-augment').style.display  = 'none';
+    el('btn-end-turn').style.display = 'none';
+
+    const hasHand   = selectedHandCard !== null;
+    const fullSel   = buildFullSelection();
+    const hasCenter = fullSel.length > 0;
 
     const captureOk = hasHand && hasCenter &&
         isValidCapture(selectedHandCard, fullSel);
@@ -342,6 +447,25 @@ function updateStatus(msg) {
 }
 
 function updateActionHint() {
+    // ── Augmenting phase hint ─────────────────────────────────────────────────
+    if (turnPhase === 'augmenting') {
+        const myBuild = GameState.centerCards.find(i => i.type === 'build' && i.owner === 'player');
+        if (!myBuild) { updateStatus('No active build. Click End Turn.'); return; }
+        const fullSel = buildFullSelection();
+        if (fullSel.length === 0) {
+            updateStatus(`Build-${myBuild.targetValue} is yours. Select center cards summing to ${myBuild.targetValue} to augment, or click End Turn.`);
+        } else {
+            const sum = fullSel.reduce((s, i) => s + getItemValue(i), 0);
+            if (sum === myBuild.targetValue) {
+                updateStatus(`Sum = ${sum} ✓  Click Augment to add these cards to your build.`);
+            } else {
+                updateStatus(`Sum = ${sum} — need exactly ${myBuild.targetValue} to augment.`);
+            }
+        }
+        return;
+    }
+
+    // ── Selecting phase hint ──────────────────────────────────────────────────
     if (!selectedHandCard) {
         const hasBuild = hasActiveBuild('player');
         if (GameState.centerCards.length === 0 && GameState.aiCaptures.length === 0) {
@@ -361,7 +485,7 @@ function updateActionHint() {
         if (canDrift) {
             updateStatus(`${cardToString(selectedHandCard)} matches your build — click Drift to leave it open, or select center cards.`);
         } else if (opts.length > 0) {
-            updateStatus(`${cardToString(selectedHandCard)} selected — select center cards (or AI's pile top) to capture/build, or Play Card.`);
+            updateStatus(`${cardToString(selectedHandCard)} selected — select center cards to capture/build, or Play Card.`);
         } else {
             updateStatus(`${cardToString(selectedHandCard)} selected — no captures available. Select cards to build, or Play Card.`);
         }
@@ -424,7 +548,8 @@ function handleCenterItemClick(item) {
 
 function handleAIPileTopClick() {
     if (GameState.currentTurn !== 'player' || isAnimating) return;
-    if (!selectedHandCard) {
+    // In selecting phase: requires a hand card first; in augmenting phase: no hand card needed
+    if (turnPhase === 'selecting' && !selectedHandCard) {
         updateStatus('Select a card from your hand first!');
         return;
     }
@@ -488,9 +613,10 @@ function handleBuild() {
     } else if (isSteal) {
         updateStatus(`You stole the AI's build! Now targeting ${target} — capture with a ${target}.`);
     } else {
-        updateStatus(`Built to ${target}! Capture it on your next turn with a ${target}.`);
+        updateStatus(`Built to ${target}! Augment your build or click End Turn.`);
     }
-    afterPlayerMove();
+    // After building: enter augment phase so player can add more cards before ending turn
+    afterPlayerMove(true);
 }
 
 // Drift: intentionally not capturing your own build — play the capture card onto it,
@@ -535,16 +661,62 @@ function handlePlayCard() {
 }
 
 // ── Post-move flow ────────────────────────────────────────────────────────────
-function afterPlayerMove() {
+// enterAugmentPhase = true: player just built and may augment before ending turn.
+// enterAugmentPhase = false (default): turn passes straight to AI.
+function afterPlayerMove(enterAugmentPhase = false) {
     renderGame();
 
     const status = checkAfterTurn();
 
     if (status === 'roundOver') {
+        turnPhase = 'selecting';
         setTimeout(endRoundUI, 900);
         return;
     }
 
+    if (enterAugmentPhase) {
+        turnPhase = 'augmenting';
+        GameState.currentTurn = 'player';
+        renderGame();
+        const myBuild = GameState.centerCards.find(i => i.type === 'build' && i.owner === 'player');
+        if (myBuild) {
+            updateStatus(`Select center cards summing to ${myBuild.targetValue} and click Augment, or click End Turn.`);
+        }
+        return;
+    }
+
+    turnPhase = 'selecting';
+    GameState.currentTurn = 'ai';
+    renderGame();
+    setTimeout(doAITurn, 1300);
+}
+
+// ── Augment: add center cards to player's own build (no hand card consumed) ──
+function handleAugment() {
+    if (isAnimating) return;
+    const fullSel = buildFullSelection();
+    if (!isValidAugment(fullSel, true)) {
+        const myBuild = GameState.centerCards.find(i => i.type === 'build' && i.owner === 'player');
+        updateStatus(`Augment: select center cards summing to ${myBuild ? myBuild.targetValue : '?'}.`);
+        return;
+    }
+
+    const items = [...fullSel];
+    resetSelection(); // clear center selection; turnPhase stays 'augmenting'
+
+    const result = executeAugment(items, true);
+    if (result.error) { updateStatus(result.error); renderGame(); return; }
+
+    renderGame();
+    const myBuild = result.build;
+    updateStatus(`Augmented! Build-${myBuild.targetValue} now has ${myBuild.cards.length} cards. Augment more or click End Turn.`);
+}
+
+// ── End Turn: finish player's augment phase and pass to AI ────────────────────
+function handleEndTurn() {
+    if (isAnimating) return;
+    turnPhase = 'selecting';
+    resetSelection();
     GameState.currentTurn = 'ai';
     renderGame();
     setTimeout(doAITurn, 1300);
@@ -578,6 +750,10 @@ function doAITurn() {
             }
         } else if (move) {
             applyAIMove(move);
+            // After a build, AI augments its build with any available center cards
+            if (move.type === 'build') {
+                doAIAugmentation();
+            }
         }
 
         renderGame();
@@ -625,6 +801,27 @@ function applyAIMove(move) {
         const result = executeTrail(move.handCard, false);
         if (!result.error) {
             updateStatus(`AI played ${cardToString(move.handCard)} to the center.`);
+        }
+    }
+}
+
+// ── AI augmentation: greedily add center cards to AI's build ─────────────────
+function doAIAugmentation() {
+    let augmented = true;
+    while (augmented) {
+        augmented = false;
+        const myBuild = GameState.centerCards.find(i => i.type === 'build' && i.owner === 'ai');
+        if (!myBuild) break;
+
+        // Available items: floor cards and player's pile top (not own pile, builds, or drifted)
+        const center    = GameState.centerCards.filter(i => i !== myBuild && i.type !== 'drifted' && i.type !== 'build');
+        const playerTop = getOpponentTopPileItem(false); // AI's opponent is the player
+        const available = playerTop ? [...center, playerTop] : [...center];
+
+        const subsets = findSubsetsWithSum(available, myBuild.targetValue);
+        if (subsets.length > 0) {
+            executeAugment(subsets[0], false);
+            augmented = true;
         }
     }
 }
@@ -687,6 +884,7 @@ function showGameOverUI() {
 function handleNextRound() {
     el('score-overlay').classList.add('hidden');
     startRound();
+    turnPhase = 'selecting';
     resetSelection();
     renderGame();
     const pTotal = GameState.playerCaptures.length;
@@ -702,6 +900,7 @@ function handleNextRound() {
 function handlePlayAgain() {
     el('gameover-overlay').classList.add('hidden');
     initGame();
+    turnPhase = 'selecting';
     resetSelection();
     renderGame();
     updateStatus('New game! Round 1 — select a card to play it or start building.');
