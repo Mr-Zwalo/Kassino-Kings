@@ -10,7 +10,6 @@
 
 <div id="game-container">
 
-    <!-- ── Header ───────────────────────────────────────────────────────── -->
     <div id="header">
         <div id="game-title">♠ Kassino Kings ♥</div>
         <a href="properties.html" id="properties-link" title="Browse premium properties">🏡 Properties</a>
@@ -30,7 +29,6 @@
         </div>
     </div>
 
-    <!-- ── AI hand ──────────────────────────────────────────────────────── -->
     <div id="ai-area">
         <div id="ai-label-row">
             <span>AI's Hand</span>
@@ -39,22 +37,18 @@
         <div id="ai-hand"></div>
     </div>
 
-    <!-- ── Center table ─────────────────────────────────────────────────── -->
     <div id="center-area">
-        <!-- Player's capture pile (left side) -->
         <div class="pile-col" id="player-pile-col">
             <div class="pile-label">Your Pile</div>
             <div id="player-pile-top" class="pile-top-card"></div>
             <div id="player-pile-count" class="pile-count">0 cards</div>
         </div>
 
-        <!-- Center table cards -->
         <div id="center-table">
             <div id="center-table-label">Center Table</div>
             <div id="center-cards"></div>
         </div>
 
-        <!-- AI's capture pile (right side) — top card is clickable for capture/build -->
         <div class="pile-col" id="ai-pile-col">
             <div class="pile-label">AI's Pile</div>
             <div id="ai-pile-top" class="pile-top-card"></div>
@@ -63,23 +57,21 @@
         </div>
     </div>
 
-    <!-- ── Player area ──────────────────────────────────────────────────── -->
     <div id="player-area">
         <div id="status-bar">
-            <div id="status-message">Initialising…</div>
+            <div id="status-message">Initialising...</div>
         </div>
         <div id="player-hand"></div>
         <div id="action-buttons">
             <button id="btn-capture" class="action-btn" disabled>Capture</button>
-            <button id="btn-build"   class="action-btn" disabled>Build</button>
-            <button id="btn-trail"   class="action-btn" disabled>Drift</button>
+            <button id="btn-build" class="action-btn" disabled>Build</button>
+            <button id="btn-trail" class="action-btn" disabled>Drift</button>
             <button id="btn-new-game" class="action-btn btn-secondary">New Game</button>
         </div>
     </div>
 
-</div><!-- #game-container -->
+</div>
 
-<!-- ── Round-over overlay ─────────────────────────────────────────────────── -->
 <div id="score-overlay" class="overlay hidden">
     <div class="overlay-box">
         <h2 id="overlay-title">Round Complete!</h2>
@@ -88,7 +80,6 @@
     </div>
 </div>
 
-<!-- ── Game-over overlay ──────────────────────────────────────────────────── -->
 <div id="gameover-overlay" class="overlay hidden">
     <div class="overlay-box">
         <h2 id="gameover-title">Game Over!</h2>

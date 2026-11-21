@@ -1,0 +1,20 @@
+# Large video files — host separately on CDN
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+
+# System files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Node/Build
+node_modules/
+dist/
+build/
+.env
+.env.local

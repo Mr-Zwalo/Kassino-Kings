@@ -2,7 +2,7 @@
 
 const MIN_BUILD_TARGET_VALUE = 5; // SA deck max = 10; builds below 5 are rarely strategic
 
-// ── AI entry point ────────────────────────────────────────────────────────────
+// AI entry point
 function getAIMove() {
     // 1. Capture (best scoring): includes opponent pile top card
     const capture = findBestAICapture();
@@ -12,25 +12,25 @@ function getAIMove() {
     const build = findBestAIBuild();
     if (build) return build;
 
-    // 3. Drift (trail) — last resort
+    // 3. Drift (trail) - last resort
     // SA rule: can't drift with active build in first phase, but AI tries builds first.
     // If nothing else works, trail as a fallback.
     return findBestAITrail();
 }
 
-// ── Capture ───────────────────────────────────────────────────────────────────
+// Capture
 function findBestAICapture() {
-    let bestMove  = null;
+    let bestMove = null;
     let bestScore = -1;
 
     for (const card of GameState.aiHand) {
-        // isPlayer=false → include player's pile top in capture options
+        // isPlayer=false -> include player's pile top in capture options
         const options = getValidCaptureOptions(card, false);
         for (const option of options) {
             const score = scoreCaptureMove(card, option);
             if (score > bestScore) {
                 bestScore = score;
-                bestMove  = { type: 'capture', handCard: card, centerItems: option };
+                bestMove = { type: 'capture', handCard: card, centerItems: option };
             }
         }
     }
@@ -60,13 +60,13 @@ function scoreCaptureMove(handCard, centerItems) {
     // Special card bonuses
     for (const item of centerItems) {
         const cards = item.type === 'pileTopCard' ? [item.card]
-                    : item.type === 'build'       ? item.cards
-                    : [item];
+            : item.type === 'build' ? item.cards
+                : [item];
         for (const c of cards) {
             if (c.rank === '10' && c.suit === 'diamonds') score += 25; // Big Casino
-            if (c.rank === '2'  && c.suit === 'spades')   score += 12; // Little Casino
-            if (c.rank === 'A')                            score += 10;
-            if (c.suit === 'spades')                       score +=  4;
+            if (c.rank === '2' && c.suit === 'spades') score += 12; // Little Casino
+            if (c.rank === 'A') score += 10;
+            if (c.suit === 'spades') score += 4;
         }
     }
 
@@ -76,10 +76,10 @@ function scoreCaptureMove(handCard, centerItems) {
     return score;
 }
 
-// ── Build / Augment ───────────────────────────────────────────────────────────
+// Build / Augment
 function findBestAIBuild() {
-    const hand             = GameState.aiHand;
-    const center           = GameState.centerCards;
+    const hand = GameState.aiHand;
+    const center = GameState.centerCards;
     const aiHasActiveBuild = hasActiveBuild('ai');
 
     // SA rule: can only use player's pile top card in a build if AI already has a build
@@ -122,7 +122,7 @@ function findBestAIBuild() {
     return null;
 }
 
-// ── Drift (Trail) ─────────────────────────────────────────────────────────────
+// Drift (Trail)
 function findBestAITrail() {
     const hand = GameState.aiHand;
     if (hand.length === 0) return null;
@@ -133,9 +133,9 @@ function findBestAITrail() {
 }
 
 function trailPenalty(card) {
-    if (card.rank === 'A')                              return 100;
-    if (card.rank === '10' && card.suit === 'diamonds') return  90;
-    if (card.rank === '2'  && card.suit === 'spades')   return  80;
-    if (card.suit === 'spades')                         return  20 + card.value;
+    if (card.rank === 'A') return 100;
+    if (card.rank === '10' && card.suit === 'diamonds') return 90;
+    if (card.rank === '2' && card.suit === 'spades') return 80;
+    if (card.suit === 'spades') return 20 + card.value;
     return card.value;
 }

@@ -1,17 +1,16 @@
-/* ── Reset & base ────────────────────────────────────────────────────────────*/
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-    --felt:       #1a6b2a;
-    --felt-dark:  #0f4a1a;
+    --felt: #1a6b2a;
+    --felt-dark: #0f4a1a;
     --felt-light: #22853a;
-    --gold:       #ffd700;
-    --gold-dark:  #c8a800;
-    --card-w:     68px;
-    --card-h:     95px;
-    --red:        #cc1111;
-    --black:      #111111;
-    --btn-green:  #2d7a2d;
+    --gold: #ffd700;
+    --gold-dark: #c8a800;
+    --card-w: 68px;
+    --card-h: 95px;
+    --red: #cc1111;
+    --black: #111111;
+    --btn-green: #2d7a2d;
     --radius-card: 8px;
 }
 
@@ -23,7 +22,7 @@ html, body {
     overflow: hidden;
 }
 
-/* ── Layout ──────────────────────────────────────────────────────────────────*/
+/* Layout */
 #game-container {
     display: flex;
     flex-direction: column;
@@ -34,7 +33,7 @@ html, body {
     gap: 8px;
 }
 
-/* ── Header ──────────────────────────────────────────────────────────────────*/
+/* Header */
 #header {
     display: flex;
     align-items: center;
@@ -106,7 +105,7 @@ html, body {
     font-size: 1em;
 }
 
-/* ── AI area ─────────────────────────────────────────────────────────────────*/
+/* AI area */
 #ai-area {
     flex-shrink: 0;
 }
@@ -131,7 +130,7 @@ html, body {
     padding: 2px;
 }
 
-/* ── Center area ─────────────────────────────────────────────────────────────*/
+/* Center area */
 #center-area {
     flex: 1;
     display: flex;
@@ -151,48 +150,7 @@ html, body {
     background: rgba(255, 200, 0, .18);
 }
 
-/* deck column */
-#deck-column {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
-}
-
-.deck-card-back {
-    width: var(--card-w);
-    height: var(--card-h);
-    border-radius: var(--radius-card);
-    background: #00008b;
-    border: 2px solid var(--gold);
-    background-image:
-        repeating-linear-gradient(45deg,
-            rgba(255,215,0,.10) 0, rgba(255,215,0,.10) 2px,
-            transparent 2px, transparent 12px);
-    transition: opacity .3s;
-}
-
-#deck-count {
-    color: var(--gold);
-    font-weight: bold;
-    font-size: 1em;
-}
-
-#deck-label {
-    font-size: .7em;
-    color: #888;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-/* center table */
-#center-table {
-    flex: 1;
-    min-width: 0;
-}
-
-/* ── Capture pile columns ─────────────────────────────────────────────────────*/
+/* capture pile columns */
 .pile-col {
     display: flex;
     flex-direction: column;
@@ -243,13 +201,11 @@ html, body {
     font-size: 1.4em;
 }
 
-/* Pile card — slightly smaller and no hover lift to distinguish from hand cards */
 .pile-card {
     cursor: default;
     animation: none;
 }
 
-/* AI's pile top card is clickable for the human player */
 .pile-card-clickable {
     cursor: pointer;
     outline: 2px dashed rgba(255,215,0,.4);
@@ -263,6 +219,11 @@ html, body {
 
 #ai-pile-col .pile-label { color: #f88; }
 #player-pile-col .pile-label { color: #7af; }
+
+#center-table {
+    flex: 1;
+    min-width: 0;
+}
 
 #center-table-label {
     text-align: center;
@@ -281,7 +242,7 @@ html, body {
     min-height: var(--card-h);
 }
 
-/* ── Player area ─────────────────────────────────────────────────────────────*/
+/* Player area */
 #player-area {
     flex-shrink: 0;
     display: flex;
@@ -323,9 +284,9 @@ html, body {
     padding-bottom: 4px;
 }
 
-/* ── Cards ───────────────────────────────────────────────────────────────────*/
+/* Cards */
 .card {
-    width:  var(--card-w);
+    width: var(--card-w);
     height: var(--card-h);
     background: #fff;
     border: 2px solid #ccc;
@@ -341,7 +302,7 @@ html, body {
     flex-shrink: 0;
 }
 
-.card.red  { color: var(--red); }
+.card.red { color: var(--red); }
 .card.black { color: var(--black); }
 
 .card:hover { transform: translateY(-6px); box-shadow: 0 10px 22px rgba(0,0,0,.55); }
@@ -360,7 +321,6 @@ html, body {
     border-width: 3px;
 }
 
-/* card internals */
 .card-corner { display: flex; flex-direction: column; align-items: center; line-height: 1; }
 .card-corner-tl { align-self: flex-start; }
 .card-corner-br { align-self: flex-end; transform: rotate(180deg); }
@@ -368,7 +328,6 @@ html, body {
 .cr-suit { font-size: .72em; }
 .card-center-suit { font-size: 1.7em; text-align: center; line-height: 1; align-self: center; }
 
-/* card back */
 .card-back {
     width: var(--card-w);
     height: var(--card-h);
@@ -382,7 +341,7 @@ html, body {
     flex-shrink: 0;
 }
 
-/* ── Build wrapper ───────────────────────────────────────────────────────────*/
+/* Build wrapper */
 .build-wrapper {
     display: flex;
     flex-direction: column;
@@ -409,7 +368,6 @@ html, body {
 
 .build-stack {
     position: relative;
-    /* width & height set inline per build */
 }
 
 .build-owner-label {
@@ -417,9 +375,9 @@ html, body {
     color: #bbb;
 }
 .build-owner-label.owner-player { color: #7af; }
-.build-owner-label.owner-ai     { color: #f88; }
+.build-owner-label.owner-ai { color: #f88; }
 
-/* ── Buttons ─────────────────────────────────────────────────────────────────*/
+/* Buttons */
 .action-btn {
     padding: 9px 20px;
     font-family: 'Georgia', serif;
@@ -457,7 +415,7 @@ html, body {
     background: linear-gradient(to bottom, #7d5028, #4f2e12);
 }
 
-/* ── Overlays ────────────────────────────────────────────────────────────────*/
+/* Overlays */
 .overlay {
     position: fixed;
     inset: 0;
@@ -489,7 +447,6 @@ html, body {
     text-shadow: 0 2px 6px rgba(0,0,0,.5);
 }
 
-/* score table */
 #score-breakdown { margin-bottom: 20px; }
 
 .score-row {
@@ -501,7 +458,7 @@ html, body {
     font-size: .9em;
 }
 .score-row.score-header { border-bottom: 1px solid rgba(255,255,255,.25); }
-.score-row.score-total  {
+.score-row.score-total {
     font-weight: bold;
     font-size: 1em;
     color: var(--gold);
@@ -512,68 +469,49 @@ html, body {
 }
 
 .sr-label { color: #ccc; flex: 1; }
-.sr-vals  { display: flex; gap: 28px; }
+.sr-vals { display: flex; gap: 28px; }
 .sr-p, .sr-a { min-width: 32px; text-align: right; font-weight: bold; }
 .sr-p { color: #7af; }
 .sr-a { color: #f88; }
 .sr-p.highlight { color: #4f4; }
 .sr-a.highlight { color: #4f4; }
 .sr-p-head, .sr-a-head { min-width: 32px; text-align: right; color: #999; font-size: .85em; }
-.sr-p-head { color: #7af; }
-.sr-a-head { color: #f88; }
 
-/* game-over */
 .final-scores {
-    background: rgba(0,0,0,.3);
-    border-radius: 10px;
-    padding: 16px;
-    margin-bottom: 16px;
+    display: grid;
+    gap: 8px;
+    margin-bottom: 12px;
 }
 
 .final-score-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 0;
 }
 
-.fscore-label { color: #ccc; }
-.fscore-val { font-size: 2em; font-weight: bold; }
+.fscore-label { color: #ddd; }
+.fscore-val { font-size: 1.2em; font-weight: 700; }
 .fscore-val.player { color: #7af; }
-.fscore-val.ai     { color: #f88; }
+.fscore-val.ai { color: #f88; }
 
 .gameover-note {
+    color: #bbb;
     text-align: center;
-    color: #888;
-    font-size: .85em;
-    margin-bottom: 16px;
 }
 
-.overlay-box .action-btn {
-    display: block;
-    width: 100%;
-    text-align: center;
-    margin-top: 6px;
-}
+@media (max-width: 900px) {
+    #header {
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+    }
 
-/* ── Animations ──────────────────────────────────────────────────────────────*/
-@keyframes dealIn {
-    from { transform: translateY(-60px) scale(.8); opacity: 0; }
-    to   { transform: translateY(0)    scale(1);   opacity: 1; }
-}
+    #score-panel {
+        width: 100%;
+        justify-content: center;
+    }
 
-.card { animation: dealIn .25s ease-out; }
-.card-back { animation: dealIn .25s ease-out; }
-
-/* ── Responsive ──────────────────────────────────────────────────────────────*/
-@media (max-width: 600px) {
-    :root { --card-w: 48px; --card-h: 68px; }
-    .cr-rank { font-size: .72em; }
-    .card-center-suit { font-size: 1.2em; }
-    #game-title { font-size: 1.1em; }
-    .game-score { font-size: 1.4em; }
-    .score-box { padding: 5px 8px; min-width: 72px; }
-    .action-btn { padding: 6px 10px; font-size: .8em; }
-    #center-area { padding: 8px 6px; gap: 6px; }
-    .pile-col { min-width: 58px; }
+    #game-title {
+        font-size: 1.2em;
+    }
 }

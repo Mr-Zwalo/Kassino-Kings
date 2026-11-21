@@ -1,47 +1,47 @@
 'use strict';
 
-// ── Game State ────────────────────────────────────────────────────────────────
+// Game State
 const GameState = {
-    deck:            [],
-    centerCards:     [],   // cards and builds on the table
-    playerHand:      [],
-    aiHand:          [],
-    playerCaptures:  [],   // face-up capture pile (top = last element = lowest card)
-    aiCaptures:      [],   // face-up capture pile (top = last element = lowest card)
-    playerScore:     0,    // cumulative game score
-    aiScore:         0,    // cumulative game score
-    lastCapture:     null, // 'player' | 'ai'
-    currentTurn:     'player',
-    gamePhase:       'playing', // 'playing' | 'roundOver' | 'gameOver'
-    roundNumber:     1,
-    isSecondPhase:   false,       // true after the second deal of 10 cards
-    nextFirstPlayer: 'player'     // who goes first in the next round (SA: loser goes first)
+    deck: [],
+    centerCards: [], // cards and builds on the table
+    playerHand: [],
+    aiHand: [],
+    playerCaptures: [], // face-up capture pile (top = last element = lowest card)
+    aiCaptures: [], // face-up capture pile (top = last element = lowest card)
+    playerScore: 0, // cumulative game score
+    aiScore: 0, // cumulative game score
+    lastCapture: null, // 'player' | 'ai'
+    currentTurn: 'player',
+    gamePhase: 'playing', // 'playing' | 'roundOver' | 'gameOver'
+    roundNumber: 1,
+    isSecondPhase: false, // true after the second deal of 10 cards
+    nextFirstPlayer: 'player' // who goes first in the next round (SA: loser goes first)
 };
 
-// ── Initialization ────────────────────────────────────────────────────────────
+// Initialization
 function initGame() {
-    GameState.playerScore     = 0;
-    GameState.aiScore         = 0;
-    GameState.roundNumber     = 1;
-    GameState.gamePhase       = 'playing';
+    GameState.playerScore = 0;
+    GameState.aiScore = 0;
+    GameState.roundNumber = 1;
+    GameState.gamePhase = 'playing';
     GameState.nextFirstPlayer = 'player';
     startRound();
 }
 
 function startRound() {
     const deck = createDeck(); // 40-card SA pack
-    GameState.deck           = shuffleDeck(deck);
-    GameState.centerCards    = [];
-    GameState.playerHand     = [];
-    GameState.aiHand         = [];
+    GameState.deck = shuffleDeck(deck);
+    GameState.centerCards = [];
+    GameState.playerHand = [];
+    GameState.aiHand = [];
     GameState.playerCaptures = [];
-    GameState.aiCaptures     = [];
-    GameState.lastCapture    = null;
-    GameState.isSecondPhase  = false;
-    GameState.currentTurn    = GameState.nextFirstPlayer;
+    GameState.aiCaptures = [];
+    GameState.lastCapture = null;
+    GameState.isSecondPhase = false;
+    GameState.currentTurn = GameState.nextFirstPlayer;
 
     // SA rules: for 2 players, NO center cards are dealt at the start.
-    // The first player cannot capture — they must drift.
+    // The first player cannot capture - they must drift.
     // Deal 10 cards to each player; 20 remain in deck for the second deal.
     for (let i = 0; i < 10; i++) {
         GameState.playerHand.push(GameState.deck.pop());
@@ -59,14 +59,14 @@ function dealSecondHands() {
     GameState.isSecondPhase = true;
 }
 
-// ── Item value helpers ────────────────────────────────────────────────────────
+// Item value helpers
 function getItemValue(item) {
-    if (item.type === 'build')        return item.targetValue;
-    if (item.type === 'pileTopCard')  return item.card.value;
+    if (item.type === 'build') return item.targetValue;
+    if (item.type === 'pileTopCard') return item.card.value;
     return item.value;
 }
 
-// ── Subset-sum (for capture / build lookups) ──────────────────────────────────
+// Subset-sum (for capture / build lookups)
 function findSubsetsWithSum(items, targetSum) {
     const results = [];
     function bt(idx, chosen, sum) {
@@ -87,27 +87,27 @@ function findSubsetsWithSum(items, targetSum) {
     return results;
 }
 
-// ── Pile top card helpers ─────────────────────────────────────────────────────
+// Pile top card helpers
 // Returns the top-card wrapper for the OPPONENT's pile.
-// isPlayer = true  → player is acting; opponent = AI
-// isPlayer = false → AI is acting;     opponent = player
+// isPlayer = true  -> player is acting; opponent = AI
+// isPlayer = false -> AI is acting;     opponent = player
 function getOpponentTopPileItem(isPlayer) {
     const pile = isPlayer ? GameState.aiCaptures : GameState.playerCaptures;
     if (pile.length === 0) return null;
     const card = pile[pile.length - 1];
     return {
-        type:      'pileTopCard',
+        type: 'pileTopCard',
         pileOwner: isPlayer ? 'ai' : 'player',
         card,
-        value:     card.value,
-        rank:      card.rank,
-        suit:      card.suit,
-        id:        card.id + '_pileTop'
+        value: card.value,
+        rank: card.rank,
+        suit: card.suit,
+        id: card.id + '_pileTop'
     };
 }
 
-// ── Capture validation ────────────────────────────────────────────────────────
-// SA 40-card deck: all values are numeric (A=1, 2–10). No dual-value Ace.
+// Capture validation
+// SA 40-card deck: all values are numeric (A=1, 2-10). No dual-value Ace.
 function isValidCapture(handCard, selectedItems) {
     if (!selectedItems || selectedItems.length === 0) return false;
     const sum = selectedItems.reduce((s, item) => s + getItemValue(item), 0);
@@ -116,29 +116,32 @@ function isValidCapture(handCard, selectedItems) {
 
 // Return all valid capture combinations for handCard (includes opponent pile top).
 function getValidCaptureOptions(handCard, isPlayer = true) {
-    const center   = GameState.centerCards;
-    const oppTop   = getOpponentTopPileItem(isPlayer);
+    const center = GameState.centerCards;
+    const oppTop = getOpponentTopPileItem(isPlayer);
     const capturable = oppTop ? [...center, oppTop] : [...center];
     return findSubsetsWithSum(capturable, handCard.value);
 }
 
-// ── Build validation ──────────────────────────────────────────────────────────
+// Build validation
 function isValidBuild(handCard, selectedCenterItems, hand) {
     if (!selectedCenterItems || selectedCenterItems.length === 0) return false;
 
     const who = (hand === GameState.playerHand) ? 'player' : 'ai';
 
     // Cannot incorporate an opponent's build
-    if (selectedCenterItems.some(item => item.type === 'build' && item.owner !== who))
+    if (selectedCenterItems.some(item => item.type === 'build' && item.owner !== who)) {
         return false;
+    }
 
     // Cannot use your own pile's top card as build material
-    if (selectedCenterItems.some(item => item.type === 'pileTopCard' && item.pileOwner === who))
+    if (selectedCenterItems.some(item => item.type === 'pileTopCard' && item.pileOwner === who)) {
         return false;
+    }
 
     // SA rule: can only steal opponent's pile top into a build if you already have an active build
-    if (selectedCenterItems.some(item => item.type === 'pileTopCard') && !hasActiveBuild(who))
+    if (selectedCenterItems.some(item => item.type === 'pileTopCard') && !hasActiveBuild(who)) {
         return false;
+    }
 
     const selectedSum = selectedCenterItems.reduce((s, item) => s + getItemValue(item), 0);
     const target = handCard.value + selectedSum;
@@ -153,12 +156,12 @@ function isValidBuild(handCard, selectedCenterItems, hand) {
     });
 }
 
-// ── State helpers ─────────────────────────────────────────────────────────────
+// State helpers
 function hasActiveBuild(who) {
     return GameState.centerCards.some(item => item.type === 'build' && item.owner === who);
 }
 
-// ── Execute moves ─────────────────────────────────────────────────────────────
+// Execute moves
 function executeCapture(handCard, selectedCenterItems, isPlayer) {
     const who = isPlayer ? 'player' : 'ai';
 
@@ -183,7 +186,7 @@ function executeCapture(handCard, selectedCenterItems, isPlayer) {
     for (const item of selectedCenterItems) {
         if (item.type === 'pileTopCard') {
             const pile = item.pileOwner === 'player' ? GameState.playerCaptures : GameState.aiCaptures;
-            const idx  = pile.length - 1;
+            const idx = pile.length - 1;
             if (idx >= 0 && pile[idx].id === item.card.id) pile.splice(idx, 1);
         }
     }
@@ -235,7 +238,7 @@ function executeBuild(handCard, selectedCenterItems, isPlayer) {
     for (const item of selectedCenterItems) {
         if (item.type === 'pileTopCard') {
             const pile = item.pileOwner === 'player' ? GameState.playerCaptures : GameState.aiCaptures;
-            const idx  = pile.length - 1;
+            const idx = pile.length - 1;
             if (idx >= 0 && pile[idx].id === item.card.id) pile.splice(idx, 1);
         }
     }
@@ -246,11 +249,11 @@ function executeBuild(handCard, selectedCenterItems, isPlayer) {
     );
 
     const build = {
-        type:        'build',
-        cards:       buildCards,
+        type: 'build',
+        cards: buildCards,
         targetValue: target,
-        owner:       who,
-        id:          `build_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+        owner: who,
+        id: `build_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
     };
     GameState.centerCards.push(build);
 
@@ -261,7 +264,7 @@ function executeBuild(handCard, selectedCenterItems, isPlayer) {
 function executeTrail(handCard, isPlayer) {
     // SA rule: cannot drift with an active build (except in the second phase)
     if (isPlayer && hasActiveBuild('player') && !GameState.isSecondPhase) {
-        return { error: "You have a build — you must capture or add to your build, not drift!" };
+        return { error: 'You have a build - you must capture or add to your build, not drift!' };
     }
 
     if (isPlayer) {
@@ -274,12 +277,12 @@ function executeTrail(handCard, isPlayer) {
     return { success: true };
 }
 
-// ── Round flow ────────────────────────────────────────────────────────────────
+// Round flow
 // Returns: 'continue' | 'newHands' | 'roundOver'
 function checkAfterTurn() {
     if (GameState.playerHand.length > 0 || GameState.aiHand.length > 0) return 'continue';
 
-    // Both hands empty — check for second deal
+    // Both hands empty - check for second deal
     if (GameState.deck.length > 0) {
         dealSecondHands();
         return 'newHands';
@@ -305,7 +308,7 @@ function endRoundCleanup() {
     GameState.centerCards = [];
 }
 
-// ── Scoring (South African Casino) ───────────────────────────────────────────
+// Scoring (South African Casino)
 function calculateRoundScores() {
     const p = GameState.playerCaptures;
     const a = GameState.aiCaptures;
@@ -315,47 +318,58 @@ function calculateRoundScores() {
 
     const scores = {
         player: {
-            mostCards:    0,
-            fiveSpades:   0, // at least 5 spades
+            mostCards: 0,
+            fiveSpades: 0, // at least 5 spades
             littleCasino: 0,
-            bigCasino:    0,
-            aces:         0,
-            total:        0,
-            cardCount:    p.length,
-            spadeCount:   pSpades
+            bigCasino: 0,
+            aces: 0,
+            total: 0,
+            cardCount: p.length,
+            spadeCount: pSpades
         },
         ai: {
-            mostCards:    0,
-            fiveSpades:   0,
+            mostCards: 0,
+            fiveSpades: 0,
             littleCasino: 0,
-            bigCasino:    0,
-            aces:         0,
-            total:        0,
-            cardCount:    a.length,
-            spadeCount:   aSpades
+            bigCasino: 0,
+            aces: 0,
+            total: 0,
+            cardCount: a.length,
+            spadeCount: aSpades
         }
     };
 
     // Most cards: 2 pts; if tied, each gets 1 pt
-    if (p.length > a.length)      { scores.player.mostCards = 2; }
-    else if (a.length > p.length) { scores.ai.mostCards     = 2; }
-    else                          { scores.player.mostCards = 1; scores.ai.mostCards = 1; }
+    if (p.length > a.length) {
+        scores.player.mostCards = 2;
+    } else if (a.length > p.length) {
+        scores.ai.mostCards = 2;
+    } else {
+        scores.player.mostCards = 1;
+        scores.ai.mostCards = 1;
+    }
 
     // At least 5 spades: 1 pt (each qualifying player scores independently)
     if (pSpades >= 5) scores.player.fiveSpades = 1;
-    if (aSpades >= 5) scores.ai.fiveSpades     = 1;
+    if (aSpades >= 5) scores.ai.fiveSpades = 1;
 
-    // 2♠ Little Casino (1 pt)
-    if      (p.some(c => c.rank === '2' && c.suit === 'spades')) scores.player.littleCasino = 1;
-    else if (a.some(c => c.rank === '2' && c.suit === 'spades')) scores.ai.littleCasino     = 1;
+    // 2s Little Casino (1 pt)
+    if (p.some(c => c.rank === '2' && c.suit === 'spades')) {
+        scores.player.littleCasino = 1;
+    } else if (a.some(c => c.rank === '2' && c.suit === 'spades')) {
+        scores.ai.littleCasino = 1;
+    }
 
-    // 10♦ Big Casino (2 pts)
-    if      (p.some(c => c.rank === '10' && c.suit === 'diamonds')) scores.player.bigCasino = 2;
-    else if (a.some(c => c.rank === '10' && c.suit === 'diamonds')) scores.ai.bigCasino     = 2;
+    // 10d Big Casino (2 pts)
+    if (p.some(c => c.rank === '10' && c.suit === 'diamonds')) {
+        scores.player.bigCasino = 2;
+    } else if (a.some(c => c.rank === '10' && c.suit === 'diamonds')) {
+        scores.ai.bigCasino = 2;
+    }
 
     // Aces (1 pt each)
     scores.player.aces = p.filter(c => c.rank === 'A').length;
-    scores.ai.aces     = a.filter(c => c.rank === 'A').length;
+    scores.ai.aces = a.filter(c => c.rank === 'A').length;
 
     scores.player.total =
         scores.player.mostCards + scores.player.fiveSpades +
@@ -372,7 +386,7 @@ function calculateRoundScores() {
 
 function applyRoundScores(scores) {
     GameState.playerScore += scores.player.total;
-    GameState.aiScore     += scores.ai.total;
+    GameState.aiScore += scores.ai.total;
     GameState.roundNumber++;
 
     // SA rule: the loser of the previous round starts first in the next round
